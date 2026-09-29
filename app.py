@@ -19,6 +19,18 @@ from src.ui.theme import build_theme, load_css
 
 logger = logging.getLogger(__name__)
 
+try:
+    import spaces  # only present on Hugging Face Spaces
+except ImportError:
+    spaces = None
+
+if spaces is not None:
+
+    @spaces.GPU
+    def _zerogpu_marker() -> None:
+        """Never called; ZeroGPU refuses to start a Space with no @spaces.GPU function."""
+
+
 IDLE_CHECK_SECONDS = 5
 DEFAULT_CONCURRENCY = 10
 IMAGE_CACHE_CLEAN_EVERY_SECONDS = 60
