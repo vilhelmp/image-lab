@@ -20,9 +20,9 @@ idna==3.20
     #   httpx
 pillow==12.3.0
     # via ai-image-lab
-pydantic==2.13.5
+pydantic==2.12.5
     # via ai-image-lab
-pydantic-core==2.46.5
+pydantic-core==2.41.5
     # via pydantic
 pyyaml==6.0.3
     # via ai-image-lab

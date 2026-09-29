@@ -17,3 +17,5 @@ jobs:
           git diff --exit-code requirements.txt
       - name: Version pins match README frontmatter
         run: uv run python scripts/check_versions.py
+      - name: requirements.txt resolves with the Space's own installs
+        run: uv run python scripts/check_space_install.py

@@ -41,3 +41,5 @@ Everything from Phase 2 on: no auth, budget or device limits, no real providers 
 - Language names come from each locale file (`lang.name`), so adding a language needs only one new JSON file.
 - Generated images are removed from Gradio's temp cache after 10 minutes (`delete_cache`).
 - Known: the Gradio footer and internal API endpoints are still visible; Phase 2 hides them.
+- The Space installs `gradio[oauth,mcp]`, whose `mcp` extra caps pydantic at 2.12.5. `pyproject.toml` therefore pins `gradio[mcp,oauth]==6.28.0` so `requirements.txt` matches, and CI dry-runs the Space's install (`scripts/check_space_install.py`).
+- The local `.venv` must live outside OneDrive (OneDrive locks files and corrupts it). Set `UV_PROJECT_ENVIRONMENT` to a folder under `%LOCALAPPDATA%`.

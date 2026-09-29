@@ -39,7 +39,7 @@ Phases follow spec §20. Phase 2 must be finished before real API keys are added
 
 Deploy the fake-provider skeleton early, on the free account, before building further. Decision rule: if every check passes, stay on the free account; if anything is flaky, subscribe to PRO for the event month and switch the Space to CPU Basic.
 
-- [ ] Create the Gradio SDK Space and push the skeleton with `DEVELOPMENT_MODE=true` as a Space variable (no secrets set; startup allows this)
+- [ ] Create the Gradio SDK Space and push the skeleton with `DEVELOPMENT_MODE=true` as a Space variable (no secrets set; startup allows this). Space is `magnusp/image-lab`; first build failed on a pydantic pin conflict, fixed by pinning `gradio[mcp,oauth]`, push again
 - [ ] Check the Space starts on ZeroGPU with no `@spaces.GPU` function. If startup fails with a missing-GPU-function error, add a never-called no-op `@spaces.GPU` function (needs the `spaces` package) and note it in STATUS
 - [ ] Pinned Gradio and Python versions build and run on ZeroGPU
 - [ ] Measure wake-from-sleep time and note the sleep behaviour for the README

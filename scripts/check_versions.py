@@ -17,7 +17,7 @@ def gradio_pin() -> str:
         "dependencies"
     ]
     for dep in deps:
-        match = re.fullmatch(r"gradio==([^\s;]+)", dep.strip())
+        match = re.fullmatch(r"gradio(?:\[[^\]]*\])?==([^\s;]+)", dep.strip())
         if match:
             return match.group(1)
     raise SystemExit("pyproject.toml must pin gradio with '==X.Y.Z'.")

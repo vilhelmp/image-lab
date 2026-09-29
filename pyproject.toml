@@ -6,7 +6,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = [
-    "gradio==6.28.0", # must equal sdk_version in README.md
+    "gradio[mcp,oauth]==6.28.0", # must equal sdk_version; HF Spaces installs these extras
     "httpx",
     "pillow",
     "pydantic>=2",
