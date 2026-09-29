@@ -12,19 +12,28 @@ from pydantic import BaseModel, Field
 from src.config import Settings
 from src.errors import (
     AppError,
+    BudgetReachedError,
     CheckFailedError,
+    CooldownError,
+    EmptyInputError,
+    PausedError,
     ProviderTimeoutError,
+    RateLimitedError,
     SafetyRefusalError,
+    TooLongInputError,
     error_code,
 )
 from src.providers.base import Aspect, ImageRequest, ModerationResult
 from src.providers.factory import Providers
+from src.services.limits import Kind, LimitService
 from src.services.prompts import compose_prompt, style_fragment
 from src.services.safety import validate_input
 
 logger = logging.getLogger(__name__)
 
 CREATE_TIMEOUT_SECONDS = 45
+INPUT_ERRORS = (EmptyInputError, TooLongInputError)
+LIMIT_ERRORS = (PausedError, BudgetReachedError, CooldownError, RateLimitedError)
 
 
 class CreateRequest(BaseModel):
@@ -45,36 +54,43 @@ class GenerationResult(BaseModel):
 class GenerationService:
     """Only AppError escapes create(). Log lines hold no prompts, images or secrets."""
 
-    def __init__(self, settings: Settings, providers: Providers) -> None:
+    def __init__(self, settings: Settings, providers: Providers, limits: LimitService) -> None:
         self._settings = settings
         self._providers = providers
+        self._limits = limits
 
     async def create(self, req: CreateRequest) -> GenerationResult:
         model_key = self._settings.models.defaults.create_model
         started = time.perf_counter()
         cost = 0.0
-        outcome = "ok"
+        outcome = "cancelled"
+        kind: Kind | None = None
         try:
             async with asyncio.timeout(CREATE_TIMEOUT_SECONDS):
                 result = await self._create(req, model_key)
             cost = result.est_cost
+            outcome, kind = "ok", "ok"
             return result
         except TimeoutError as exc:
-            outcome = ProviderTimeoutError.code
+            outcome, kind = ProviderTimeoutError.code, "error"
             raise ProviderTimeoutError from exc
         except AppError as exc:
             outcome = error_code(exc)
+            kind = _kind_of(exc)
             raise
         except Exception as exc:
-            outcome = AppError.code
+            outcome, kind = AppError.code, "error"
             logger.error("Unexpected failure: %s.%s", type(exc).__module__, type(exc).__qualname__)
             raise AppError from exc
         finally:
+            seconds = time.perf_counter() - started
+            if kind:
+                self._limits.record(kind, model_key, seconds)
             logger.info(
                 "generation model=%s outcome=%s latency=%.2f cost=%.4f device=%s",
                 model_key,
                 outcome,
-                time.perf_counter() - started,
+                seconds,
                 cost,
                 req.device_hash or "-",
             )
@@ -82,13 +98,31 @@ class GenerationService:
     async def _create(self, req: CreateRequest, model_key: str) -> GenerationResult:
         config = self._settings.config
         text = validate_input(req.text, config.safety.max_input_chars)
-        final_prompt = compose_prompt(text, style_fragment(config.style_fragments, req.style))
+        est_cost = self._settings.models.image_models[model_key].est_cost_usd
+        reservation = self._limits.reserve(count=1, est_cost=est_cost, device=req.device_hash)
+        provider_called = False
+        try:
+            final_prompt = compose_prompt(text, style_fragment(config.style_fragments, req.style))
 
-        await self._require_clean(self._providers.moderator.moderate_text(final_prompt))
+            await self._require_clean(self._providers.moderator.moderate_text(final_prompt))
 
-        result = await self._providers.image.generate(
-            ImageRequest(prompt=final_prompt, model_key=model_key, aspect=req.aspect)
-        )
+            async with self._limits.slot():
+                provider_called = True
+                result = await self._providers.image.generate(
+                    ImageRequest(prompt=final_prompt, model_key=model_key, aspect=req.aspect)
+                )
+        except asyncio.CancelledError:
+            # A call cut short by the timeout or a closed tab may still be billed: keep the estimate
+            if provider_called:
+                self._limits.reconcile(reservation, est_cost)
+            else:
+                self._limits.release(reservation)
+            raise
+        except BaseException:
+            self._limits.release(reservation)
+            raise
+        # The image exists and is paid for, even if the output check refuses it below.
+        self._limits.reconcile(reservation, result.est_cost)
 
         await self._require_clean(self._providers.moderator.moderate_image(result.image))
 
@@ -111,3 +145,12 @@ class GenerationService:
             raise CheckFailedError from exc
         if verdict.flagged:
             raise SafetyRefusalError(code=verdict.code or "flagged")
+
+
+def _kind_of(exc: AppError) -> Kind | None:
+    """Admin-status category for a failed create. Bad input is not counted as a fault."""
+    if isinstance(exc, INPUT_ERRORS):
+        return None
+    if isinstance(exc, LIMIT_ERRORS):
+        return "limited"
+    return "refusal" if isinstance(exc, SafetyRefusalError) else "error"

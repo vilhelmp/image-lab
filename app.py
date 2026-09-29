@@ -11,9 +11,12 @@ import gradio as gr
 from src.config import Settings, load_settings
 from src.i18n import I18n
 from src.providers.factory import Providers, build_providers
+from src.services.access import build_auth
 from src.services.generation import GenerationService
+from src.services.limits import LimitService
 from src.services.session import VisitorSession
-from src.ui.components import Localizer, merge, pack
+from src.ui.admin_tab import build_admin_tab
+from src.ui.components import ApiVisibility, Localizer, merge, pack
 from src.ui.create_tab import build_create_tab
 from src.ui.theme import build_theme, load_css
 
@@ -37,15 +40,23 @@ IMAGE_CACHE_CLEAN_EVERY_SECONDS = 60
 IMAGE_CACHE_MAX_AGE_SECONDS = 600
 TOGGLE_DARK_JS = "() => document.body.classList.toggle('dark')"
 SCROLL_TOP_JS = "() => window.scrollTo(0, 0)"
+DEVICE_STORAGE_KEY = "ai-image-lab-device"
 
 
-def build_demo(settings: Settings, providers: Providers | None = None) -> gr.Blocks:
+def build_demo(
+    settings: Settings,
+    providers: Providers | None = None,
+    limits: LimitService | None = None,
+) -> gr.Blocks:
     cfg = settings.config
     default_lang = cfg.app.default_language
     i18n = I18n.load(cfg.app.languages, default_lang)
-    service = GenerationService(settings, providers or build_providers(settings))
+    limits = limits or LimitService(cfg.limits)
+    service = GenerationService(settings, providers or build_providers(settings), limits)
     loc = Localizer(i18n)
     t = loc.t
+    api_visibility: ApiVisibility = "undocumented" if cfg.access.expose_api else "private"
+    visibility = {"api_visibility": api_visibility}
 
     def touch(current: VisitorSession) -> VisitorSession:
         current.touch()
@@ -56,6 +67,7 @@ def build_demo(settings: Settings, providers: Providers | None = None) -> gr.Blo
         delete_cache=(IMAGE_CACHE_CLEAN_EVERY_SECONDS, IMAGE_CACHE_MAX_AGE_SECONDS),
     ) as demo:
         session = gr.State(VisitorSession(lang=default_lang))
+        device = gr.BrowserState(None, storage_key=DEVICE_STORAGE_KEY)
 
         with gr.Row(elem_id="header"):
             with gr.Column(scale=4):
@@ -80,8 +92,21 @@ def build_demo(settings: Settings, providers: Providers | None = None) -> gr.Blo
         with gr.Tabs(selected="create") as tabs:
             with loc.make(gr.Tab, lambda lang: {"label": t(lang, "tab.create")}, id="create"):
                 create = build_create_tab(
-                    settings=settings, service=service, loc=loc, session=session, touch=touch
+                    settings=settings,
+                    service=service,
+                    loc=loc,
+                    session=session,
+                    device=device,
+                    touch=touch,
+                    api_visibility=api_visibility,
                 )
+            build_admin_tab(
+                demo=demo,
+                limits=limits,
+                loc=loc,
+                session=session,
+                api_visibility=api_visibility,
+            )
 
         loc.make(
             gr.Markdown,
@@ -127,18 +152,21 @@ def build_demo(settings: Settings, providers: Providers | None = None) -> gr.Blo
             current.touch()
             return [current, *pack(loc.components, loc.props(lang))]
 
-        new_visitor.click(reset, [session], outputs, show_progress="hidden").then(
+        new_visitor.click(reset, [session], outputs, show_progress="hidden", **visibility).then(
             fn=None, js=SCROLL_TOP_JS
         )
-        gr.Timer(IDLE_CHECK_SECONDS).tick(on_idle, [session], outputs, show_progress="hidden")
+        gr.Timer(IDLE_CHECK_SECONDS).tick(
+            on_idle, [session], outputs, show_progress="hidden", **visibility
+        )
         lang_toggle.input(
             on_language,
             [lang_toggle, session],
             [session, *loc.components],
             queue=False,
             show_progress="hidden",
+            **visibility,
         )
-        how.expand(touch, [session], [session], queue=False, show_progress="hidden")
+        how.expand(touch, [session], [session], queue=False, show_progress="hidden", **visibility)
         theme_button.click(fn=None, js=TOGGLE_DARK_JS)
 
         if cfg.app.default_theme != "system":
@@ -161,7 +189,21 @@ def main() -> None:
         logger.warning("Model '%s' hidden: no hf_model for image_backend=hf", key)
 
     demo = build_demo(settings)
-    demo.launch(theme=build_theme(), css=load_css(), ssr_mode=False)
+    auth = build_auth(
+        os.environ,
+        enabled=settings.config.access.enabled,
+        development_mode=settings.development_mode,
+    )
+    logger.info("Login required: %s", "yes" if auth else "no")
+    logger.warning("Budget counters start at zero. Provider prepaid credit is the hard limit.")
+    demo.launch(
+        theme=build_theme(),
+        css=load_css(),
+        ssr_mode=False,
+        auth=auth,
+        footer_links=[],
+        mcp_server=False,
+    )
 
 
 if __name__ == "__main__":

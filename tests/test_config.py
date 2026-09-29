@@ -18,9 +18,8 @@ def test_development_mode_env_override():
     assert load_settings(env={"DEVELOPMENT_MODE": "0"}).development_mode is False
 
 
-def test_dev_mode_disables_auth_and_needs_no_secrets():
+def test_dev_mode_needs_no_secrets():
     settings = load_settings(env={"DEVELOPMENT_MODE": "true"})
-    assert settings.auth_enabled is False
     assert settings.startup_problems({}) == []
 
 

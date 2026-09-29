@@ -15,10 +15,11 @@ from src.providers.factory import Providers
 from src.providers.fake import FakeImageProvider, FakeModerator
 from src.services import generation
 from src.services.generation import CreateRequest, GenerationService
+from src.services.limits import LimitService
 
 
 def _service(settings, providers: Providers) -> GenerationService:
-    return GenerationService(settings, providers)
+    return GenerationService(settings, providers, LimitService(settings.config.limits))
 
 
 async def test_create_returns_png_and_composed_prompt(dev_settings, fake_providers):

@@ -36,6 +36,7 @@ style_fragments:
 
 access:
   enabled: true
+  expose_api: false # true only while load testing so the Gradio client can call events. Env EXPOSE_API overrides.
 
 safety:
   mode: family
@@ -49,5 +50,5 @@ limits:
   max_cost_usd: 40
   max_concurrent_generations: 6
   max_generations_per_minute: 30
-  device_cooldown_seconds: 3
+  device_cooldown_seconds: 5 # counted from the start of the previous Create
   device_max_images_per_hour: 120 # null = off

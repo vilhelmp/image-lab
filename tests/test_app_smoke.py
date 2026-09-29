@@ -14,6 +14,7 @@ NOOP = {"__type__": "update"}
 @pytest.fixture
 def client(dev_settings: Settings, fake_providers) -> Iterator[Client]:
     dev_settings.config.ui.idle_reset_seconds = 1
+    dev_settings.config.access.expose_api = True
     demo = build_demo(dev_settings, fake_providers)
     demo.launch(prevent_thread_lock=True, quiet=True)
     try:
@@ -30,14 +31,15 @@ def test_app_builds_with_fakes(dev_settings: Settings, fake_providers):
 
 
 def test_create_completes_with_fakes(client: Client):
-    status, image = client.predict("A cat", "landscape", api_name="/on_create")
+    device, status, image = client.predict("A cat", "landscape", None, api_name="/on_create")
+    assert device
     assert status["visible"] is False
     assert image["visible"] is True
     assert image["value"].endswith(".png")
 
 
 def test_empty_idea_shows_friendly_message(client: Client):
-    status, _ = client.predict("   ", "square", api_name="/on_create")
+    _, status, _ = client.predict("   ", "square", None, api_name="/on_create")
     assert status["value"] == "Skriv först vad du vill skapa."
 
 

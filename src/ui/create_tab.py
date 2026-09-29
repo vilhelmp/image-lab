@@ -13,8 +13,9 @@ import gradio as gr
 from src.config import Settings
 from src.errors import AppError, error_message_key
 from src.services.generation import CreateRequest, GenerationService
+from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
-from src.ui.components import Block, Localizer, Updates, to_pil
+from src.ui.components import ApiVisibility, Block, Localizer, Updates, to_pil
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,13 @@ def build_create_tab(
     service: GenerationService,
     loc: Localizer,
     session: gr.State,
+    device: gr.BrowserState,
     touch: Handler,
+    api_visibility: ApiVisibility,
 ) -> CreateTab:
     ui = settings.config.ui
     t = loc.t
+    visibility = {"api_visibility": api_visibility}
 
     def placeholders(lang: str) -> list[str]:
         return [ui.challenge[lang], *(t(lang, key) for key in PLACEHOLDER_KEYS)]
@@ -137,24 +141,32 @@ def build_create_tab(
             [session, *styles.values()],
             queue=False,
             show_progress="hidden",
+            **visibility,
         )
 
-    quiet = {"queue": False, "show_progress": "hidden", "trigger_mode": "always_last"}
+    quiet = {"queue": False, "show_progress": "hidden", "trigger_mode": "always_last", **visibility}
     text.input(touch, [session], [session], **quiet)
     aspect.input(touch, [session], [session], **quiet)
 
-    async def on_create(idea: str, chosen_aspect: str, current: VisitorSession):
+    async def on_create(idea: str, chosen_aspect: str, device_value: Any, current: VisitorSession):
         current.touch()
         lang = current.lang
+        device_id, device_hash = device_identity(device_value)
         yield (
             current,
+            device_id,
             gr.update(interactive=False),
             gr.update(value=t(lang, "create.working"), visible=True),
             gr.skip(),
         )
         try:
             made = await service.create(
-                CreateRequest(text=idea, style=current.style, aspect=chosen_aspect)
+                CreateRequest(
+                    text=idea,
+                    style=current.style,
+                    aspect=chosen_aspect,
+                    device_hash=device_hash,
+                )
             )
             picture = to_pil(made.image)
         except Exception as exc:  # any failure must re-enable the button
@@ -162,6 +174,7 @@ def build_create_tab(
                 logger.error("Create callback failed: %s", type(exc).__qualname__)
             yield (
                 current,
+                device_id,
                 gr.update(interactive=True),
                 gr.update(value=t(lang, error_message_key(exc)), visible=True),
                 gr.skip(),
@@ -173,6 +186,7 @@ def build_create_tab(
         )
         yield (
             current,
+            device_id,
             gr.update(interactive=True),
             gr.update(value="", visible=False),
             gr.update(value=picture, visible=True),
@@ -180,8 +194,9 @@ def build_create_tab(
 
     create_button.click(
         on_create,
-        [text, aspect, session],
-        [session, create_button, status, result],
+        [text, aspect, device, session],
+        [session, device, create_button, status, result],
+        **visibility,
     )
 
     def on_rotate(current: VisitorSession):
@@ -191,6 +206,6 @@ def build_create_tab(
         )
 
     gr.Timer(PLACEHOLDER_ROTATE_SECONDS).tick(
-        on_rotate, [session], [text], show_progress="hidden", queue=False
+        on_rotate, [session], [text], show_progress="hidden", queue=False, **visibility
     )
     return tab

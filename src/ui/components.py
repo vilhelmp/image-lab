@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import io
 from collections.abc import Callable, Iterable
-from typing import Any
+from typing import Any, Literal
 
 import gradio as gr
 from PIL import Image
@@ -14,6 +14,7 @@ from src.i18n import I18n
 Block = gr.blocks.Block
 Updates = dict[Block, dict[str, Any]]
 Props = Callable[[str], dict[str, Any]]
+ApiVisibility = Literal["private", "undocumented"]
 
 
 class Localizer:
@@ -24,8 +25,8 @@ class Localizer:
         self.default_language = i18n.default_language
         self._bindings: list[tuple[Block, Props]] = []
 
-    def t(self, lang: str, key: str) -> str:
-        return self.i18n.t(lang, key)
+    def t(self, lang: str, key: str, **values: object) -> str:
+        return self.i18n.t(lang, key, **values)
 
     def make(self, cls: type[Block], props: Props, **static: Any) -> Any:
         """Build `cls` with props for the default language and remember how to re-localize it."""

@@ -28,6 +28,11 @@ class RateLimitedError(AppError):
     message_key = "error.busy"
 
 
+class CooldownError(AppError):
+    code = "cooldown"
+    message_key = "error.cooldown"
+
+
 class BudgetReachedError(AppError):
     code = "budget_reached"
     message_key = "error.budget"

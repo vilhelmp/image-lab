@@ -10,11 +10,13 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from src.services.access import ADMIN_ENV, WORKSHOP_ENV, password_problems
+
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
 
 LocalizedText = dict[str, str]
 PLACEHOLDER_MARK = "<verify"
-REAL_SECRET_NAMES = ("FAL_KEY", "HF_TOKEN", "OPENAI_API_KEY", "WORKSHOP_PASSWORD", "ADMIN_PASSWORD")
+REAL_SECRET_NAMES = ("FAL_KEY", "HF_TOKEN", "OPENAI_API_KEY")
 
 
 class _Strict(BaseModel):
@@ -57,6 +59,7 @@ class UiSection(_Strict):
 
 class AccessSection(_Strict):
     enabled: bool = True
+    expose_api: bool = False  # true only while load testing: lets the Gradio client call events
 
 
 class SafetySection(_Strict):
@@ -166,10 +169,6 @@ class Settings(_Strict):
     def development_mode(self) -> bool:
         return self.config.app.development_mode
 
-    @property
-    def auth_enabled(self) -> bool:
-        return self.config.access.enabled and not self.development_mode
-
     def _available(self, model: ImageModel | EditModel) -> bool:
         if not model.enabled:
             return False
@@ -214,10 +213,22 @@ class Settings(_Strict):
                     "development_mode must not be enabled on a Hugging Face Space "
                     f"that has real secrets set: {', '.join(present)}"
                 ]
-            return []
+            problems = password_problems(env)
+            passwords_set = [bool(env.get(name)) for name in (WORKSHOP_ENV, ADMIN_ENV)]
+            if self.config.access.enabled and any(passwords_set) and not all(passwords_set):
+                problems.append(f"Set both {WORKSHOP_ENV} and {ADMIN_ENV}, or neither")
+            return problems
         problems = [
             f"Missing secret: {name}" for name in self.required_secrets() if not env.get(name)
         ]
+        if self.config.access.enabled:
+            problems += password_problems(env)
+        else:
+            problems.append("access.enabled is false: refusing to run with real keys and no login")
+        if self.config.access.expose_api:
+            problems.append(
+                "access.expose_api is only for load tests with fakes (development mode)"
+            )
         model_ids = [
             (f"image model '{k}'", self.model_id_for(m))
             for k, m in self.active_image_models().items()
@@ -252,6 +263,8 @@ def load_settings(config_dir: Path = CONFIG_DIR, env: Mapping[str, str] | None =
     app_data = _read_yaml(config_dir / "app.yaml")
     if "DEVELOPMENT_MODE" in env:
         app_data.setdefault("app", {})["development_mode"] = _truthy(env["DEVELOPMENT_MODE"])
+    if "EXPOSE_API" in env:
+        app_data.setdefault("access", {})["expose_api"] = _truthy(env["EXPOSE_API"])
     return Settings(
         config=AppConfig.model_validate(app_data),
         models=ModelsConfig.model_validate(_read_yaml(config_dir / "models.yaml")),
