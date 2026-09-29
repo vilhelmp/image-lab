@@ -1,0 +1,52 @@
+/* Tap targets are at least 48px for iPad use. */
+.gradio-container {
+  max-width: 960px !important;
+  margin: 0 auto;
+}
+
+button {
+  min-height: 48px;
+}
+
+#header {
+  align-items: center;
+}
+
+.lang-toggle label,
+.format-radio label {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+}
+
+#style-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.style-tile {
+  min-height: 72px;
+  flex: 1 1 120px;
+  font-size: 1.1rem;
+}
+
+.primary-action {
+  min-height: 64px;
+  font-size: 1.25rem;
+  width: 100%;
+}
+
+.status-card {
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 1.1rem;
+}
+
+#result-image img {
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.new-visitor {
+  min-height: 56px;
+}

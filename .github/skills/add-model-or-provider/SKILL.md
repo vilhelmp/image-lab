@@ -47,7 +47,7 @@ Finish every case with "Done when" at the end.
 
 ## D. Add a language
 
-1. Create `locales/<code>.json` by copying `locales/en.json` and translating every value. Keys must match exactly.
+1. Create `locales/<code>.json` by copying `locales/en.json` and translating every value, including `lang.name` (the language's own name, shown in the language toggle). Keys must match exactly.
 2. Add the code to `app.languages` in `config/app.yaml`.
 3. Add translations wherever labels are keyed by language: `config/models.yaml` (`label`, `description`), `ui.challenge` in `config/app.yaml`, and style, chip and error strings.
 4. LLM helpers receive the selected language; confirm `improve`, `surprise` and `edit_instruction` handle it. Add allow and block cases for the language to `tests/safety_cases.yaml`.

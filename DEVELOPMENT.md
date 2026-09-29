@@ -29,7 +29,7 @@ How to implement things in AI Image Lab with Copilot. The spec is [ai_image_lab_
    uv run pytest
    ```
 6. **Review safety-relevant changes.** Run `@safety-reviewer` on the changed files if you touched generation, safety, prompts, limits, errors, providers or logging. Fix CRITICAL and HIGH findings before merging.
-7. **Check the sync rules** before pushing (also enforced by CI, spec §18.3):
+7. **Check the sync rules** before pushing (also enforced by CI, spec §18.4):
    - Regenerate `requirements.txt`, never edit it by hand:
      ```bash
      uv export --no-hashes --no-dev --no-emit-project --prune gradio > requirements.txt

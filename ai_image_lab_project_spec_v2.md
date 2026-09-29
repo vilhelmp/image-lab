@@ -185,23 +185,27 @@ Rules:
 
 ```python
 class ImageRequest(BaseModel):
-    prompt: str                 # final composed prompt
-    model_key: str              # key in models.yaml
+    prompt: str  # final composed prompt
+    model_key: str  # key in models.yaml
     aspect: Literal["square", "landscape", "portrait"]
+
 
 class EditRequest(BaseModel):
     image: bytes
-    instruction: str            # short natural-language edit instruction
+    instruction: str  # short natural-language edit instruction
     model_key: str
 
+
 class ImageResult(BaseModel):
-    image: bytes                # always bytes; adapters download URLs immediately
+    image: bytes  # always bytes; adapters download URLs immediately
     model_key: str
     seconds: float
     est_cost: float
 
+
 class ImageProvider(ABC):
     async def generate(self, req: ImageRequest) -> ImageResult: ...
+
 
 class EditProvider(ABC):
     async def edit(self, req: EditRequest) -> ImageResult: ...
@@ -477,7 +481,10 @@ def build_auth(settings) -> list[tuple[str, str]] | None:
         raise RuntimeError("Access enabled but WORKSHOP_PASSWORD/ADMIN_PASSWORD missing.")
     return [("workshop", workshop), ("admin", admin)]
 
-demo.launch(auth=build_auth(settings), ssr_mode=False)  # hide API docs link per the pinned Gradio version's option
+
+demo.launch(
+    auth=build_auth(settings), ssr_mode=False
+)  # hide API docs link per the pinned Gradio version's option
 ```
 
 - The **admin** user sees an extra "Status" tab (§12), detected via `gr.Request.username`.
@@ -609,15 +616,26 @@ Minimum tests:
 GitHub Actions runs tests on push with fakes only (no secrets).
 
 ---
-
 ## 18. Deployment
 
-- Hugging Face **Gradio SDK Space**, CPU basic (free) is sufficient. No Docker Space unless the optional QR route (§9) proves impossible in the SDK Space.
-- Secrets set in Space settings.
-- Free CPU Spaces sleep after 48 h of inactivity: open the app about an hour before the event to wake it.
-- Test on iPad Safari with exactly the pinned Gradio version.
+### 18.1 Hosting
 
-### 18.1 Environment and dependency management
+- Hugging Face **Gradio SDK Space**. Docker Spaces require PRO and are not used; if the optional QR route (§9) can't be built in the Gradio SDK Space, drop QR rather than switching to Docker.
+- **Hardware:**
+  - **Free account:** Gradio Spaces run on **ZeroGPU**; CPU Basic is not available. The app never requests a GPU (no `@spaces.GPU` functions), so it runs on the CPU side and uses no GPU quota.
+  - **PRO account:** CPU Basic is available and is the preferred hardware for the event.
+  - Decision rule: deploy the fake-provider skeleton (phase 1) on ZeroGPU early and run the ZeroGPU checks below. If all pass, stay on the free account. If anything is flaky, subscribe to PRO for the event month and switch the Space to CPU Basic.
+- **ZeroGPU checks** (on a real iPad, direct `.hf.space` URL):
+  - the pinned Gradio and Python versions build and run on ZeroGPU;
+  - login works and survives normal use;
+  - 5 devices running Compare simultaneously (≈ 10 concurrent outbound API calls) for 10 minutes without errors or stalls;
+  - wake-from-sleep time is acceptable, and sleep behaviour is noted in the README.
+- Do not enable the Storage Bucket option. Budget counters are in-memory by design; prepaid provider credits are the hard cap (§10).
+- Secrets set in Space settings.
+- Spaces sleep after a period of inactivity: open the app about an hour before the event to wake it.
+- Test on iPad Safari with exactly the pinned Gradio version and the hardware used on the day.
+
+### 18.2 Environment and dependency management
 
 Use **uv** for local development. No conda (no heavy compiled scientific dependencies) and no Docker for local dev (keeps forking simple).
 
@@ -632,38 +650,38 @@ uv run python app.py
 uv run pytest
 ```
 
-### 18.2 Keeping HF Spaces in sync with uv
+### 18.3 Keeping HF Spaces in sync with uv
 
 HF Gradio SDK Spaces install from `requirements.txt`, not `uv.lock`, and install Gradio from the README `sdk_version`. Three rules prevent version drift:
 
 1. **Generate `requirements.txt`, never edit it:**
 
-   ```bash
+```bash
    uv export --no-hashes --no-dev --no-emit-project \
      --prune gradio > requirements.txt
-   ```
+```
 
-   `--prune gradio` keeps Gradio out of the file so it doesn't conflict with `sdk_version`. Check that the uv version used supports `--prune`; if not, filter the `gradio` line out in a small script (`scripts/export_requirements.sh`). Gradio's own dependencies are installed by the SDK, so dropping only the top-level `gradio` line is sufficient if pruning isn't available; verify the Space builds either way.
+   `--prune gradio` keeps Gradio out of the file so it doesn't conflict with `sdk_version`. Check that the uv version used supports `--prune`; if not, filter the top-level `gradio` line out in a small script (`scripts/export_requirements.sh`). Verify the Space builds either way.
 
-2. **One Gradio version everywhere:** the version pinned in `pyproject.toml` (`gradio==X.Y.Z`) must equal `sdk_version` in the README frontmatter.
+2. **One Gradio version everywhere:** the version pinned in `pyproject.toml` (`gradio==X.Y.Z`) must equal `sdk_version` in the README frontmatter, and must be a version supported on ZeroGPU.
 
-3. **One Python version everywhere:** `python_version` in the README frontmatter must equal `.python-version`.
+3. **One Python version everywhere:** `python_version` in the README frontmatter must equal `.python-version`, and must be a version supported on ZeroGPU.
 
 README frontmatter:
 
 ```yaml
----
-title: AI Image Lab
-sdk: gradio
-sdk_version: "X.Y.Z"        # == gradio pin in pyproject.toml
-python_version: "3.12"      # == .python-version
-app_file: app.py
-pinned: false
-license: mit
----
+  ---
+  title: AI Image Lab
+  sdk: gradio
+  sdk_version: "X.Y.Z"        # == gradio pin in pyproject.toml; ZeroGPU-compatible
+  python_version: "3.12"      # == .python-version; ZeroGPU-compatible
+  app_file: app.py
+  pinned: false
+  license: mit
+  ---
 ```
 
-### 18.3 CI checks (GitHub Actions)
+### 18.4 CI checks (GitHub Actions)
 
 On every push:
 
@@ -672,12 +690,12 @@ On every push:
 - regenerate `requirements.txt` and fail if `git diff --exit-code requirements.txt` shows changes;
 - a small script asserts the Gradio pin equals `sdk_version` and `.python-version` equals `python_version`.
 
-### Reusability
+### 18.5 Reusability
 
 - MIT license; README with screenshot, "Duplicate this Space" instructions (secrets are not copied), and a 5-minute quick start.
+- README states which hardware has been tested: **ZeroGPU (free account)** and/or **CPU Basic (PRO)**, so people who fork it on a free account know what to expect.
 - Everything workshop-specific (challenge text, limits, models, styles, chips, languages) lives in YAML/JSON.
 - `development_mode` lets anyone run it locally with zero API keys.
-
 ---
 
 ## 19. Workshop checklist (in README)

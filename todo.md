@@ -1,0 +1,142 @@
+# TODO
+
+Progress tracker for AI Image Lab. Plan: [ai_image_lab_project_spec_v2.md](ai_image_lab_project_spec_v2.md) (change only when warranted). Current state: [STATUS.md](STATUS.md). Tick a box only when the work is done and its tests pass.
+
+Phases follow spec §20. Phase 2 must be finished before real API keys are added in phase 3.
+
+## Phase 0: Project setup
+
+- [x] `pyproject.toml` with pinned `gradio==X.Y.Z`, dev group (pytest, pytest-asyncio, ruff)
+- [x] `.python-version` (3.12), `uv.lock` committed
+- [x] Repo layout from spec §4 (`src/`, `config/`, `locales/`, `assets/`, `tests/`)
+- [x] `.env.example`, `.gitignore`, MIT `LICENSE`
+- [x] README.md with HF Spaces frontmatter (`sdk_version` = gradio pin, `python_version` = `.python-version`)
+- [x] `scripts/export_requirements.sh` fallback if `uv export --prune` is unavailable (not needed: `--prune` works in uv 0.8.12)
+- [x] Generate `requirements.txt` (never edit by hand)
+- [ ] GitHub Actions: `uv sync --locked`, `pytest` with fakes, requirements diff check, version-pin check (spec §18.4). Workflow written and its steps pass locally; tick after the first green run on GitHub
+- [ ] Confirm the pinned Gradio 6.28.0 and Python are supported on ZeroGPU (docs list Gradio 4+, Python 3.12.12 and 3.10.13). If HF does not accept `python_version: "3.12"`, pin `3.12.12` in `.python-version` and the README, and check the pin script still passes (spec §18.3)
+
+## Phase 1: Skeleton (runs locally, no keys)
+
+- [x] `src/config.py`: Pydantic settings, YAML loading, startup validation (spec §16)
+- [x] `config/app.yaml` and `config/models.yaml` with placeholder `<verify>` models
+- [x] `src/i18n.py`, `locales/sv.json`, `locales/en.json`
+- [x] `src/errors.py`: typed errors mapped to localized messages (spec §15)
+- [x] `src/providers/base.py`: `ImageProvider`, `EditProvider`, `TextProvider`, `Moderator`, request and result models
+- [x] `src/providers/fake.py`: fakes for image, edit, text and moderation, with configurable delay
+- [x] `src/services/prompts.py`: pure composer (style + optional translation), unit tested
+- [x] `src/services/generation.py`: orchestration with fakes
+- [x] `src/ui/theme.py` and small CSS file
+- [x] `src/ui/components.py`: localizer and update helpers (style tiles, format control, status and image live in `create_tab.py`)
+- [x] `src/ui/create_tab.py`: text box, style tiles, format, Create button, rotating placeholder with challenge
+- [x] Footer with privacy line and "How does it work?" panel shell
+- [x] "New visitor" button and idle auto-reset with `gr.Timer`
+- [x] Language toggle and theme toggle
+- [x] `app.py` wiring; `development_mode: true` (or env `DEVELOPMENT_MODE=true`) uses fakes and disables auth
+- [x] Tests: `test_config.py`, `test_prompts.py`, locale key parity
+
+## Phase 1b: Early hosting check on ZeroGPU (spec §18.1)
+
+Deploy the fake-provider skeleton early, on the free account, before building further. Decision rule: if every check passes, stay on the free account; if anything is flaky, subscribe to PRO for the event month and switch the Space to CPU Basic.
+
+- [ ] Create the Gradio SDK Space and push the skeleton with `DEVELOPMENT_MODE=true` as a Space variable (no secrets set; startup allows this)
+- [ ] Check the Space starts on ZeroGPU with no `@spaces.GPU` function. If startup fails with a missing-GPU-function error, add a never-called no-op `@spaces.GPU` function (needs the `spaces` package) and note it in STATUS
+- [ ] Pinned Gradio and Python versions build and run on ZeroGPU
+- [ ] Measure wake-from-sleep time and note the sleep behaviour for the README
+- [ ] Load test with fakes: about 10 concurrent Creates for 10 minutes without errors or stalls (Compare does not exist yet; repeat in Phase 5)
+- [ ] Open the direct `.hf.space` URL on a real iPad and confirm the app is usable
+- [ ] Record the outcome (free ZeroGPU or PRO with CPU Basic) in STATUS.md
+- [ ] Do not enable the Storage Bucket option
+
+## Phase 2: Access and limits
+
+- [ ] Auth for `workshop` and `admin` users from env vars; fail startup if missing (spec §11)
+- [ ] Hide API docs link; `ssr_mode=False`; set `api_name=False` on internal events so no endpoints are exposed
+- [ ] `src/services/limits.py`: reservation (reserve, call, reconcile or release) under one lock type
+- [ ] Compare reserves 2 images atomically
+- [ ] Global semaphore and per-minute rate limit
+- [ ] Device ID via `gr.BrowserState`; cooldown and optional hourly cap; pass the hashed ID as `device_hash` in `CreateRequest` for logs
+- [ ] Kill switch (Pause generation)
+- [ ] Startup warning that budget counters start at zero
+- [ ] `src/ui/admin_tab.py`: usage, spend, latency, errors and refusals (counts only), Pause, Reset counters with confirm
+- [ ] Tests: `test_limits.py` (20 concurrent tasks stay under ceiling, failure releases, compare reserves 2, cooldown, kill switch), `test_auth.py`
+- [ ] ZeroGPU check on a real iPad: login works and survives normal use on the direct `.hf.space` URL (spec §18.1)
+
+## Phase 3: Real providers and safety
+
+- [ ] `src/providers/fal.py` image adapter
+- [ ] `src/providers/hf_inference.py` image adapter (parity with fal)
+- [ ] `image_backend: fal | hf` switch; hide models without `hf_model`; startup secret validation
+- [ ] `src/providers/openai_text.py`: improve, surprise, policy check with structured JSON, one retry, graceful fallback
+- [ ] `src/providers/openai_moderation.py`: text and image moderation
+- [ ] `src/services/safety.py`: final-prompt moderation and policy check in parallel (`asyncio.gather`), fail closed on errors and malformed output
+- [ ] Moderate every LLM output (translation, rewrite, help-me, surprise) before composing or showing it, including `SafetyRefusalError.rewrite`
+- [ ] Adapters map provider moderation categories to a fixed internal code set and raise on empty or unknown results
+- [ ] Keep `FakeModerator` only with fake image providers (development mode on a Space with real secrets is already refused at startup)
+- [ ] Output-image moderation before display
+- [ ] Character policy (`allow | redirect | block`) and safe-rewrite card
+- [ ] Retries only on 429, selected 5xx and timeouts, max 2, with jitter
+- [ ] Help me and Surprise me buttons with Undo
+- [ ] `tests/safety_cases.yaml` (about 40 SV and EN cases) and `test_safety.py`
+- [ ] Script to run safety cases against real services and print pass or fail
+- [ ] Verify real model IDs, prices and latency; replace `<verify>` placeholders
+- [ ] Logging check: no prompts, image bytes or secrets
+- [ ] Run `@safety-reviewer` on the whole flow before adding real API keys
+
+## Phase 4: Edit chips
+
+- [ ] Edit adapter for fal, and HF where supported
+- [ ] Chip config in `app.yaml`, static instructions, and LLM-picked "new setting"
+- [ ] Chips send current image plus instruction to the edit model; previous image goes to history
+- [ ] Fallback to rewrite and regenerate labelled "Ny version" when no edit model
+- [ ] "Another version" button
+- [ ] Recent images strip (last 6 per visitor)
+- [ ] Post-generation layout: large image, collapsed inputs
+- [ ] Tests for edit path, fallback, and moderation of chip output
+
+## Phase 5: Compare
+
+- [ ] `src/ui/compare_tab.py`: shared text box, styles, format
+- [ ] Two model cards with friendly names and descriptions; block identical choice unless allowed
+- [ ] Concurrent generation with isolated failures
+- [ ] Side by side in landscape, stacked in portrait; model name and seconds
+- [ ] "Why are they different?" expander
+- [ ] Tests: one side fails or is refused while the other shows
+- [ ] ZeroGPU check: 5 devices running Compare at once (about 10 concurrent outbound API calls) for 10 minutes without errors or stalls (spec §18.1)
+
+## Phase 6: Polish
+
+- [ ] Style thumbnails in `assets/style_thumbs/`
+- [ ] iPad CSS: 48 px tap targets, landscape and portrait, light and dark
+- [ ] "How does it work?" panel: four steps, prompt anatomy, "What did the model receive?"
+- [ ] Status messages while generating; buttons disabled
+- [ ] Latency tuning against spec §7 targets
+- [ ] Test on a real iPad Safari with the pinned Gradio version, the direct `.hf.space` URL and the hardware used on the day
+
+## Phase 7: Ship
+
+- [ ] README: screenshot, Duplicate Space steps, 5-minute quick start, provider privacy note
+- [ ] README states the hardware tested (ZeroGPU on a free account and/or CPU Basic on PRO) and the Space's sleep and wake behaviour (spec §18.5)
+- [ ] Workshop checklist in README (spec §19)
+- [ ] Optional QR handoff (`features.qr_handoff`), documented as an unauthenticated route
+- [ ] Deploy to the HF Gradio SDK Space on the hardware chosen in Phase 1b; set secrets and turn off `DEVELOPMENT_MODE`; Storage Bucket stays off
+- [ ] Full smoke test: Create and Compare with fakes in CI
+
+## Workshop readiness (spec §19 and §21)
+
+- [ ] Hosting decision from Phase 1b still holds (free ZeroGPU, or PRO with the Space switched to CPU Basic)
+- [ ] Prepaid credits loaded, auto-recharge off
+- [ ] Fal vs HF backend comparison on the same 20 prompts; backend chosen
+- [ ] Swedish prompt quality tested per model; translation decided
+- [ ] Five devices doing Compare for 10 minutes; admin tab watched
+- [ ] Incognito browser blocked without password
+- [ ] AirDrop tested (and QR if enabled)
+- [ ] Repo and Space settings frozen
+- [ ] Final `@safety-reviewer` pass
+- [ ] All 15 acceptance criteria in spec §21 met
+
+## Notes
+
+Record decisions, blockers and open questions here.
+
+-

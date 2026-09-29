@@ -1,0 +1,48 @@
+# Model IDs and prices are placeholders. Replace every "<verify...>" before real use (spec section 5.3).
+image_models:
+  fast:
+    label: { sv: "Snabb", en: "Fast" }
+    description: { sv: "Blixtsnabb och bra till det mesta.", en: "Very fast and good for most ideas." }
+    provider: fal
+    api_model: "<verify: fast text-to-image model>"
+    hf_model: "<verify: HF Hub ID of the same or an equivalent model>"
+    est_cost_usd: 0.005
+    translate_to_english: false
+    enabled: true
+
+  quality:
+    label: { sv: "Hög kvalitet", en: "High quality" }
+    description: { sv: "Långsammare men mer detaljerad.", en: "Slower but more detailed." }
+    provider: fal
+    api_model: "<verify: high-quality model>"
+    hf_model: "<verify>"
+    est_cost_usd: 0.04
+    enabled: true
+
+  text_expert:
+    label: { sv: "Bra på text i bilder", en: "Good at text in images" }
+    description: { sv: "Klarar skyltar och bokstäver bättre.", en: "Handles signs and lettering better." }
+    provider: fal
+    api_model: "<verify>"
+    hf_model: "<verify>"
+    est_cost_usd: 0.03
+    enabled: true
+
+edit_models:
+  default_edit:
+    provider: fal
+    api_model: "<verify: instruction-based image edit model>"
+    # hf_model omitted until an HF image-edit route is verified; edit chips then use the fallback
+    est_cost_usd: 0.04
+    enabled: true
+
+text_models:
+  helper:
+    provider: openai
+    api_model: "<verify: small fast model>"
+
+defaults:
+  create_model: fast
+  edit_model: default_edit
+  compare_a: fast
+  compare_b: quality

@@ -1,0 +1,53 @@
+image_backend: fal # fal | hf. hf remaps every model to its hf_model
+
+app:
+  name: "AI Image Lab"
+  default_language: sv
+  languages: [sv, en]
+  default_theme: system # system | light | dark
+  development_mode: false # true = fakes, no keys, no auth. Env DEVELOPMENT_MODE overrides.
+  fake_delay_seconds: 1.5 # only used with fakes, to exercise loading states
+
+features:
+  compare_tab: true
+  help_me: true
+  surprise_me: true
+  edit_chips: true
+  qr_handoff: false
+  show_cost_to_visitors: false
+  allow_same_model_compare: false
+
+ui:
+  idle_reset_seconds: 180
+  history_size: 6
+  styles: [photo, illustration, painting, 3d, comic, retro]
+  edit_chips: [evening_light, more_playful, new_setting, as_painting, simpler]
+  challenge: { sv: "En svensk stad år 2100", en: "A Swedish city in the year 2100" }
+  reset_language_on_new_visitor: true
+
+# Provider-neutral English fragments appended to the visitor's text. Keys match ui.styles.
+style_fragments:
+  photo: "realistic photograph, natural light, sharp focus"
+  illustration: "colorful illustration, clean lines"
+  painting: "oil painting, visible brush strokes"
+  3d: "3D render, soft lighting, playful"
+  comic: "comic book style, bold outlines, bright colors"
+  retro: "retro 1970s poster style, warm faded colors"
+
+access:
+  enabled: true
+
+safety:
+  mode: family
+  characters: redirect # allow | redirect | block
+  offer_safe_rewrite: true
+  fail_closed: true
+  max_input_chars: 400
+
+limits:
+  max_images: 1000
+  max_cost_usd: 40
+  max_concurrent_generations: 6
+  max_generations_per_minute: 30
+  device_cooldown_seconds: 3
+  device_max_images_per_hour: 120 # null = off

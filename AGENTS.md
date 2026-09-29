@@ -1,12 +1,12 @@
 # AI Image Lab
 
-Gradio app on a CPU-only Hugging Face Space for a supervised workshop on shared iPads. All inference is via external APIs. The full spec is [ai_image_lab_project_spec_v2.md](ai_image_lab_project_spec_v2.md); read the relevant section before implementing. The repo is spec-only so far, so the layout in spec §4 is the target structure.
+Gradio app on a Hugging Face Gradio SDK Space (ZeroGPU on a free account, CPU Basic on PRO; the app never requests a GPU) for a supervised workshop on shared iPads. All inference is via external APIs. The full spec is [ai_image_lab_project_spec_v2.md](ai_image_lab_project_spec_v2.md); read the relevant section before implementing. The repo is spec-only so far, so the layout in spec §4 is the target structure.
 
 ## Priorities when the spec is ambiguous
 
 Visitor speed and ease > safety > predictable cost > workshop reliability > reusability > code elegance.
 
-## Commands (target, spec §18.1)
+## Commands (target, spec §18.2)
 
 ```bash
 uv sync
@@ -36,12 +36,20 @@ uv export --no-hashes --no-dev --no-emit-project --prune gradio > requirements.t
 ## Pitfalls
 
 - HF Spaces installs from a generated `requirements.txt`; never edit it by hand.
-- The `gradio` pin in `pyproject.toml` must equal `sdk_version` in the README frontmatter. `.python-version` must equal the README `python_version`.
+- The `gradio` pin in `pyproject.toml` must equal `sdk_version` in the README frontmatter. `.python-version` must equal the README `python_version`. Both must be versions supported on ZeroGPU (Gradio 4+, Python 3.12.12 or 3.10.13).
+- No Docker Space and no Storage Bucket. If the optional QR route does not fit the Gradio SDK Space, drop QR.
 - Free Space disk is ephemeral and counters reset on restart, so do not rely on SQLite or files for state.
 - Per-visitor limits use `gr.BrowserState` device IDs, not Gradio sessions.
 - iPad Safari must use the direct `.hf.space` URL because auth breaks inside the Hugging Face iframe.
 - Both fal and HF backends must work; `image_backend: hf` needs only `HF_TOKEN`.
 - Model names and prices in the spec are placeholders marked `<verify>`.
+
+## Project files
+
+- [ai_image_lab_project_spec_v2.md](ai_image_lab_project_spec_v2.md) is the plan. Change it only when a change is warranted, and say why.
+- [todo.md](todo.md) tracks the steps. Tick a box only when the work is done and its tests pass.
+- [STATUS.md](STATUS.md) describes what exists now. Update it when a step is finished.
+- `README.md` is for visitors and forkers and holds the HF Spaces frontmatter; do not use it for progress.
 
 ## Routing
 
