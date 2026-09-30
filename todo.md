@@ -13,7 +13,7 @@ Phases follow spec §20. Phase 2 must be finished before real API keys are added
 - [x] README.md with HF Spaces frontmatter (`sdk_version` = gradio pin, `python_version` = `.python-version`)
 - [x] `scripts/export_requirements.sh` fallback if `uv export --prune` is unavailable (not needed: `--prune` works in uv 0.8.12)
 - [x] Generate `requirements.txt` (never edit by hand)
-- [ ] GitHub Actions: `uv sync --locked`, `pytest` with fakes, requirements diff check, version-pin check (spec §18.4). Workflow written and its steps pass locally; tick after the first green run on GitHub
+- [x] GitHub Actions: `uv sync --locked`, `pytest` with fakes, requirements diff check, version-pin check (spec §18.4). First green run: CI #1 on `vilhelmp/image-lab`, commit d8ebb7a
 - [x] Confirm the pinned Gradio 6.28.0 and Python are supported on ZeroGPU (docs list Gradio 4+, Python 3.12.12 and 3.10.13). If HF does not accept `python_version: "3.12"`, pin `3.12.12` in `.python-version` and the README, and check the pin script still passes (spec §18.3)
 
 ## Phase 1: Skeleton (runs locally, no keys)
