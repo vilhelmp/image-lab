@@ -39,6 +39,7 @@ uv export --no-hashes --no-dev --no-emit-project --prune gradio > requirements.t
 - The Space also installs `gradio[oauth,mcp]`, `spaces` and `torch`, so `pyproject.toml` pins `gradio[mcp,oauth]==X` and `scripts/check_space_install.py` dry-runs the Space's resolution. Run it after changing dependencies.
 - The `gradio` pin in `pyproject.toml` must equal `sdk_version` in the README frontmatter. `.python-version` must equal the README `python_version`. Both must be versions supported on ZeroGPU (Gradio 4+, Python 3.12.12 or 3.10.13).
 - No Docker Space and no Storage Bucket. If the optional QR route does not fit the Gradio SDK Space, drop QR.
+- HF rejects pushes with plain binary files. Binaries such as `assets/library/*.webp` must be tracked by Git LFS (`.gitattributes`); add new binary types the same way before committing them. `git lfs checkout` restores real bytes after a clone or rewrite.
 - Free Space disk is ephemeral and counters reset on restart, so do not rely on SQLite or files for state.
 - Per-visitor limits use `gr.BrowserState` device IDs, not Gradio sessions.
 - iPad Safari must use the direct `.hf.space` URL because auth breaks inside the Hugging Face iframe.
