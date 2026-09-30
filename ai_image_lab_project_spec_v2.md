@@ -62,10 +62,9 @@ Footer: privacy line, "How does it work? / Så funkar det" expandable panel, **"
    - **"Hjälp mig / Help me"** – improves the description (see §6.1). Shows the improved text *in the text box* with a small "Ångra / Undo" link. Never generates automatically.
    - **"Överraska mig / Surprise me"** – fills the box with a complete, family-friendly idea.
 3. **Style tiles** – a single row (wraps on portrait) of 6 large tiles with a small example thumbnail each: Foto, Illustration, Målning, 3D, Serie, Retro. One tile is selectable; tapping the selected tile deselects it (= no style).
-4. **Format** – a compact segmented control: Kvadrat (default) / Liggande / Stående.
-5. **Primary button** – "Skapa bild / Create image". Large, full width.
+4. **Primary button** – "Skapa bild / Create image". Large, full width.
 
-There is **no model picker** on Create. Create always uses the configured default model, chosen for speed. Model choice lives in Compare, where it is the point.
+There is **no model picker and no format picker** on Create. Create always uses the configured default model, chosen for speed, and always makes a square image, so visitors focus on the description. (v2 originally had a Kvadrat / Liggande / Stående control; it was dropped because it distracts from the prompt and a fixed square keeps cost and latency predictable.) Adapters still accept an aspect, so a format control can return later without provider changes. Model choice lives in Compare, where it is the point.
 
 ### 3.4 Create tab – after generating
 
@@ -84,7 +83,7 @@ There is **no model picker** on Create. Create always uses the configured defaul
 
 ### 3.5 Compare tab
 
-- Shared text box (+ "Hjälp mig"), shared style tiles, shared format.
+- Shared text box (+ "Hjälp mig"), shared style tiles (always square, as on Create).
 - **Two model pickers** rendered as large tappable cards (not tiny dropdowns), each with a friendly name and a one-sentence description. Identical choice prevented unless `allow_same_model_compare: true`.
 - "Jämför / Compare" button runs both requests **concurrently**.
 - Results side by side in landscape, stacked in portrait. Under each: model name and generation time in seconds. Cost only if `show_cost_to_visitors: true`.

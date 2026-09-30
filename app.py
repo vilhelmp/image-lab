@@ -14,6 +14,7 @@ from src.logging_setup import configure_logging
 from src.providers.factory import Providers, build_providers
 from src.services.access import build_auth
 from src.services.generation import GenerationService
+from src.services.library import PromptLibrary, load_library, load_lock
 from src.services.limits import LimitService
 from src.services.session import VisitorSession
 from src.ui.admin_tab import build_admin_tab
@@ -48,12 +49,14 @@ def build_demo(
     settings: Settings,
     providers: Providers | None = None,
     limits: LimitService | None = None,
+    library: PromptLibrary | None = None,
 ) -> gr.Blocks:
     cfg = settings.config
     default_lang = cfg.app.default_language
     i18n = I18n.load(cfg.app.languages, default_lang)
     limits = limits or LimitService(cfg.limits)
-    service = GenerationService(settings, providers or build_providers(settings), limits)
+    library = library or load_library(settings).with_images(load_lock())
+    service = GenerationService(settings, providers or build_providers(settings), limits, library)
     loc = Localizer(i18n)
     t = loc.t
     api_visibility: ApiVisibility = "undocumented" if cfg.access.expose_api else "private"
@@ -100,6 +103,7 @@ def build_demo(
                     device=device,
                     touch=touch,
                     api_visibility=api_visibility,
+                    library=library,
                 )
             build_admin_tab(
                 demo=demo,

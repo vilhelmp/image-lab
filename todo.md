@@ -28,7 +28,7 @@ Phases follow spec §20. Phase 2 must be finished before real API keys are added
 - [x] `src/services/generation.py`: orchestration with fakes
 - [x] `src/ui/theme.py` and small CSS file
 - [x] `src/ui/components.py`: localizer and update helpers (style tiles, format control, status and image live in `create_tab.py`)
-- [x] `src/ui/create_tab.py`: text box, style tiles, format, Create button, rotating placeholder with challenge
+- [x] `src/ui/create_tab.py`: text box, style tiles, Create button, rotating placeholder with challenge (the format picker was dropped: images are always square)
 - [x] Footer with privacy line and "How does it work?" panel shell
 - [x] "New visitor" button and idle auto-reset with `gr.Timer`
 - [x] Language toggle and theme toggle
@@ -97,7 +97,7 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 
 ## Phase 5: Compare
 
-- [ ] `src/ui/compare_tab.py`: shared text box, styles, format
+- [ ] `src/ui/compare_tab.py`: shared text box, styles
 - [ ] Two model cards with friendly names and descriptions; block identical choice unless allowed
 - [ ] Concurrent generation with isolated failures
 - [ ] Side by side in landscape, stacked in portrait; model name and seconds
@@ -106,6 +106,10 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [ ] ZeroGPU check: 5 devices running Compare at once (about 10 concurrent outbound API calls) for 10 minutes without errors or stalls (spec §18.1)
 
 ## Phase 6: Polish
+
+- [x] Ideas popup: 7 themed groups of example prompts (`config/prompt_library.yaml`), tap to fill the text box; an unchanged prompt with no style shows its cached image instantly and free (`assets/library/*.webp`, tied to the texts by `config/prompt_library.lock.json`). Built with `scripts/build_library.py`
+- [ ] Ideas popup: review the contact sheet of all 37 images by eye before committing; check the popup on a real iPad in landscape and portrait
+- [ ] Ideas popup, later: optional per-prompt model (for example `detailed`) for the photo examples; record cached hits in the admin counts; Help me and Surprise me could draw from the library
 
 - [ ] Style thumbnails in `assets/style_thumbs/`
 - [ ] iPad CSS: 48 px tap targets, landscape and portrait, light and dark

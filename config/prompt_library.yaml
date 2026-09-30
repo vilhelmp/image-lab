@@ -1,0 +1,180 @@
+# Ideas popup on the Create tab. Each prompt has text per language (sv, en) and a cached example
+# image at assets/library/<id>.webp, made with `uv run python -m scripts.build_library`.
+# Keep prompts short, concrete and family-friendly. The English text is what the example image
+# was made from.
+groups:
+  - id: animals
+    label: { sv: Djur, en: Animals }
+    prompts:
+      - id: fox-snow
+        text:
+          sv: En räv i en snöig skog, mitt i ett steg, mjukt vinterljus
+          en: A fox in a snowy forest, caught mid-step, soft winter light
+      - id: owl-lantern
+        text:
+          sv: En liten uggla som läser en bok i lyktljus i ett mysigt trädhål
+          en: A small owl reading a book by lantern light in a cosy tree hollow
+      - id: dog-astronaut
+        text:
+          sv: En golden retriever med rymdhjälm som svävar förbi månen
+          en: A golden retriever in a space helmet floating past the moon
+      - id: puffin-cliff
+        text:
+          sv: En lunnefågel på en grön klippa vid havet i soluppgången
+          en: A puffin on a grassy sea cliff at sunrise, waves below
+      - id: cat-window
+        text:
+          sv: En sömnig orange katt i ett fönster en regnig dag, varmt lampljus
+          en: A sleepy orange cat on a windowsill on a rainy day, warm lamp light
+
+  - id: photos
+    label: { sv: Som riktiga foton, en: Like real photos }
+    prompts:
+      - id: photo-rainy-street
+        text:
+          sv: Ett riktigt foto av en blöt kullerstensgata i en gammal stad i skymningen, varmt fönsterljus speglas i pölarna, 35 mm, lite filmkorn
+          en: A real photograph of a wet cobblestone street in an old town at dusk, warm window light reflecting in puddles, 35mm lens, slight film grain
+      - id: photo-kitchen
+        text:
+          sv: Ett vardagsfoto av ett hemkök på morgonen, ånga från en kaffekopp, smulor på bänken, mjukt fönsterljus
+          en: A candid photo of a home kitchen in the morning, steam rising from a coffee mug, crumbs on the counter, soft window light
+      - id: photo-harbour
+        text:
+          sv: Dokumentärfoto av fiskebåtar i en liten hamn i soluppgången, dis över vattnet, rep och slitet trä i förgrunden
+          en: Documentary photo of fishing boats in a small harbour at sunrise, mist over the water, ropes and worn wood in the foreground
+      - id: photo-bicycle
+        text:
+          sv: Foto av en gammal röd cykel lutad mot en väderbiten tegelvägg, höstlöv på marken, mulet dagsljus, suddig bakgrund
+          en: Photo of an old red bicycle leaning on a weathered brick wall, autumn leaves on the ground, overcast daylight, shallow depth of field
+      - id: photo-strawberries
+        text:
+          sv: Närbild av färska jordgubbar på ett marknadsstånd, vattendroppar, träback, naturligt morgonljus, skarpa detaljer
+          en: Close-up photograph of fresh strawberries at a market stall, water droplets, wooden crate, natural morning light, sharp detail
+      - id: photo-workbench
+        text:
+          sv: Ett riktigt foto av en snickarbänk med en hyvel och hyvelspån, damm i en solstråle från fönstret
+          en: A real photo of a woodworking bench with a hand plane and curled wood shavings, dust in a beam of window light
+      - id: photo-squirrel
+        text:
+          sv: Naturfoto av en ekorre på en mossig gren, skarp päls, mjukt skogsljus, teleobjektiv
+          en: Wildlife photo of a red squirrel on a mossy branch, sharp fur detail, soft forest light, telephoto lens
+
+  - id: fantasy
+    label: { sv: Sagor och fantasy, en: Fantasy }
+    prompts:
+      - id: dragon-pancakes
+        text:
+          sv: En snäll drake som steker pannkakor i ett litet stugkök
+          en: A friendly dragon flipping pancakes in a small cottage kitchen
+      - id: floating-islands
+        text:
+          sv: Flygande öar med vattenfall och gamla ruiner, en äventyrare på en klippa i solnedgången
+          en: Floating islands with waterfalls and ancient ruins, an adventurer on a cliff at sunset
+      - id: moss-guardian
+        text:
+          sv: En skogsväktare av mossa och sten med glödande ögon
+          en: A forest guardian made of moss and stone with glowing eyes
+      - id: treehouse-village
+        text:
+          sv: En magisk by av trädkojor med glödande lyktor i skymningen
+          en: A magical village of treehouses with glowing lanterns at dusk
+      - id: magic-library
+        text:
+          sv: Ett magiskt bibliotek där böckerna flyger och glitter svävar i luften
+          en: A magical library where the books fly and sparkles float in the air
+
+  - id: space
+    label: { sv: Rymden och framtiden, en: Space and the future }
+    prompts:
+      - id: city-2100
+        text:
+          sv: En svensk stad år 2100 med gröna tak, flygande tåg och klart morgonljus
+          en: A Swedish city in the year 2100 with green rooftops, flying trains and clear morning light
+      - id: robot-garden
+        text:
+          sv: En liten robot som vattnar blommor i en takträdgård
+          en: A small robot watering flowers in a rooftop garden
+      - id: alien-forest
+        text:
+          sv: En astronaut som går genom en skog av glödande växter under en lila himmel
+          en: An astronaut walking through a forest of glowing alien plants under a purple sky
+      - id: moon-base
+        text:
+          sv: En mysig månbas med ett runt fönster mot jorden
+          en: A cosy moon base with a round window looking out at Earth
+      - id: rocket-launch
+        text:
+          sv: En färgglad raket som lyfter från en äng, rök och glädje
+          en: A colourful rocket lifting off from a meadow, clouds of smoke, joyful mood
+
+  - id: food
+    label: { sv: Mat och fika, en: Food and treats }
+    prompts:
+      - id: cinnamon-buns
+        text:
+          sv: Nybakade kanelbullar på en träbricka, ånga stiger, morgonljus
+          en: Fresh cinnamon buns on a wooden tray, steam rising, morning light
+      - id: smoothie-bowl
+        text:
+          sv: En färgglad smoothiebowl med bär, sedd uppifrån på ett ljust bord
+          en: A colourful smoothie bowl with berries, seen from above on a bright table
+      - id: midsummer-table
+        text:
+          sv: Ett midsommarbord utomhus med jordgubbar, blommor och en lång vit duk
+          en: A Midsummer table outdoors with strawberries, flowers and a long white tablecloth
+      - id: ice-cream-castle
+        text:
+          sv: Ett slott av glass med strössel och en vindbrygga av våffla
+          en: A castle made of ice cream with sprinkles and a waffle drawbridge
+      - id: cafe-rain
+        text:
+          sv: Ett mysigt kafébord med kaffe och en kardemummabulle, regn på rutan
+          en: A cosy café table with coffee and a cardamom bun, rain on the window
+
+  - id: places
+    label: { sv: Platser, en: Places }
+    prompts:
+      - id: lake-pines
+        text:
+          sv: En stilla turkos sjö omgiven av höga tallar och snöiga berg
+          en: A calm turquoise lake surrounded by tall pines and snowy mountains
+      - id: fog-forest
+        text:
+          sv: En skogsstig i tidig morgondimma, blekt och mjukt ljus
+          en: A forest path in early-morning fog, soft pale light
+      - id: red-cottage
+        text:
+          sv: En röd stuga vid en sjö en sommarkväll, långt kvällsljus
+          en: A red cottage by a lake on a summer evening, long golden light
+      - id: old-town-street
+        text:
+          sv: En smal kullerstensgata i en gammal stad efter regn, varma lysande fönster
+          en: A narrow cobblestone street in an old town after rain, warm glowing windows
+      - id: aurora-cabin
+        text:
+          sv: Norrsken över en snötäckt stuga och en frusen sjö
+          en: Northern lights over a snowy cabin and a frozen lake
+
+  - id: silly
+    label: { sv: Knasigt, en: Silly and surreal }
+    prompts:
+      - id: pizza-planet
+        text:
+          sv: En pizza stor som en planet med små upptäckare som picknickar på osten
+          en: A pizza as big as a planet with tiny explorers having a picnic on the cheese
+      - id: cloud-whale
+        text:
+          sv: En val som simmar genom molnen över en sömnig stad i solnedgången
+          en: A whale swimming through the clouds above a sleepy town at sunset
+      - id: teapot-house
+        text:
+          sv: Ett hus format som en jättestor tekanna med ånga ur skorstenen
+          en: A house shaped like a giant teapot with steam coming out of the chimney
+      - id: penguin-meeting
+        text:
+          sv: Pingviner i slips på ett mycket allvarligt kontorsmöte
+          en: Penguins in ties at a very serious office meeting
+      - id: bicycle-goldfish
+        text:
+          sv: En guldfisk som cyklar genom en regnig stadsgata
+          en: A goldfish riding a bicycle down a rainy city street

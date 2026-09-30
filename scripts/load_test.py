@@ -33,7 +33,6 @@ IDEAS = (
     "en katt i en rymddräkt",
     "a castle made of ice cream",
 )
-ASPECTS = ("square", "landscape", "portrait")
 
 
 @dataclass
@@ -55,9 +54,7 @@ class Stats:
 def one_create(client: Client, device: object) -> tuple[str | None, object]:
     """Returns (error description or None, device id to send next time)."""
     idea = random.choice(IDEAS)
-    new_device, status, image = client.predict(
-        idea, random.choice(ASPECTS), device, api_name=API_NAME
-    )
+    new_device, status, image = client.predict(idea, device, api_name=API_NAME)
     # Outputs are Gradio updates: a refused Create still returns a truthy dict, without a value.
     if not (isinstance(image, dict) and image.get("value")):
         message = status.get("value") if isinstance(status, dict) else status

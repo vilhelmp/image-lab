@@ -1,4 +1,4 @@
-"""Create tab: text, style tiles, format, Create button, result. Callbacks stay thin."""
+"""Create tab: text, style tiles, Create button, result. Callbacks stay thin."""
 
 from __future__ import annotations
 
@@ -13,13 +13,14 @@ import gradio as gr
 from src.config import Settings
 from src.errors import AppError, SafetyRefusalError, error_message_key
 from src.services.generation import CreateRequest, GenerationService
+from src.services.library import PromptLibrary
 from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
 from src.ui.components import ApiVisibility, Block, Localizer, Updates, to_pil
+from src.ui.ideas import IdeasPanel, build_ideas
 
 logger = logging.getLogger(__name__)
 
-ASPECTS = ("square", "landscape", "portrait")
 PLACEHOLDER_KEYS = ("create.placeholder.1", "create.placeholder.2", "create.placeholder.3")
 PLACEHOLDER_ROTATE_SECONDS = 8
 
@@ -30,32 +31,32 @@ Handler = Callable[..., Any]
 class CreateTab:
     text: gr.Textbox
     styles: dict[str, gr.Button]
-    aspect: gr.Radio
     create_button: gr.Button
     status: gr.Markdown
     result: gr.Image
     rewrite_card: gr.Button
+    ideas: IdeasPanel | None = None
 
     @property
     def managed(self) -> list[Block]:
         return [
             self.text,
             *self.styles.values(),
-            self.aspect,
             self.create_button,
             self.status,
             self.result,
             self.rewrite_card,
+            *([self.ideas.overlay] if self.ideas else []),
         ]
 
     def reset_props(self) -> Updates:
         return {
             self.text: {"value": ""},
-            self.aspect: {"value": ASPECTS[0]},
             self.create_button: {"interactive": True},
             self.status: {"value": "", "visible": False},
             self.result: {"value": None, "visible": False},
             self.rewrite_card: {"value": "", "visible": False},
+            **({self.ideas.overlay: {"visible": False}} if self.ideas else {}),
             **{button: {"variant": "secondary"} for button in self.styles.values()},
         }
 
@@ -69,6 +70,7 @@ def build_create_tab(
     device: gr.BrowserState,
     touch: Handler,
     api_visibility: ApiVisibility,
+    library: PromptLibrary | None = None,
 ) -> CreateTab:
     ui = settings.config.ui
     t = loc.t
@@ -84,6 +86,13 @@ def build_create_tab(
         max_length=settings.config.safety.max_input_chars,
         elem_id="idea-box",
     )
+    ideas = (
+        build_ideas(
+            library=library, loc=loc, text=text, session=session, api_visibility=api_visibility
+        )
+        if library and library.groups
+        else None
+    )
 
     with gr.Row(elem_id="style-row"):
         styles: dict[str, gr.Button] = {
@@ -96,15 +105,6 @@ def build_create_tab(
             for key in ui.styles
         }
 
-    aspect = loc.make(
-        gr.Radio,
-        lambda lang: {
-            "label": t(lang, "format.label"),
-            "choices": [(t(lang, f"format.{a}"), a) for a in ASPECTS],
-        },
-        value=ASPECTS[0],
-        elem_classes=["format-radio"],
-    )
     create_button = loc.make(
         gr.Button,
         lambda lang: {"value": t(lang, "create.button")},
@@ -122,7 +122,7 @@ def build_create_tab(
         buttons=["download"],
         elem_id="result-image",
     )
-    tab = CreateTab(text, styles, aspect, create_button, status, result, rewrite_card)
+    tab = CreateTab(text, styles, create_button, status, result, rewrite_card, ideas)
 
     def style_handler(key: str) -> Handler:
         def on_style(current: VisitorSession) -> list[Any]:
@@ -150,9 +150,8 @@ def build_create_tab(
 
     quiet = {"queue": False, "show_progress": "hidden", "trigger_mode": "always_last", **visibility}
     text.input(touch, [session], [session], **quiet)
-    aspect.input(touch, [session], [session], **quiet)
 
-    async def on_create(idea: str, chosen_aspect: str, device_value: Any, current: VisitorSession):
+    async def on_create(idea: str, device_value: Any, current: VisitorSession):
         current.touch()
         lang = current.lang
         device_id, device_hash = device_identity(device_value)
@@ -169,7 +168,6 @@ def build_create_tab(
                 CreateRequest(
                     text=idea,
                     style=current.style,
-                    aspect=chosen_aspect,
                     lang=lang,
                     device_hash=device_hash,
                 )
@@ -199,14 +197,16 @@ def build_create_tab(
             current,
             device_id,
             gr.update(interactive=True),
-            gr.update(value="", visible=False),
+            gr.update(value=t(lang, "ideas.example_note"), visible=True)
+            if made.cached
+            else gr.update(value="", visible=False),
             gr.update(value=picture, visible=True),
             gr.update(visible=False),
         )
 
     create_button.click(
         on_create,
-        [text, aspect, device, session],
+        [text, device, session],
         [session, device, create_button, status, result, rewrite_card],
         **visibility,
     )

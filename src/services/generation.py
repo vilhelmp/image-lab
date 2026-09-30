@@ -23,6 +23,7 @@ from src.errors import (
 )
 from src.providers.base import Aspect, ImageRequest
 from src.providers.factory import Providers
+from src.services.library import PromptLibrary
 from src.services.limits import Kind, LimitService
 from src.services.prompts import compose_prompt, style_fragment
 from src.services.safety import SafetyService, validate_input
@@ -30,6 +31,7 @@ from src.services.safety import SafetyService, validate_input
 logger = logging.getLogger(__name__)
 
 CREATE_TIMEOUT_SECONDS = 45
+LIBRARY_MODEL_KEY = "library"
 INPUT_ERRORS = (EmptyInputError, TooLongInputError)
 LIMIT_ERRORS = (PausedError, BudgetReachedError, CooldownError, RateLimitedError)
 
@@ -48,18 +50,56 @@ class GenerationResult(BaseModel):
     model_key: str
     seconds: float
     est_cost: float
+    cached: bool = False  # a library example, not generated for this visitor
 
 
 class GenerationService:
     """Only AppError escapes create(). Log lines hold no prompts, images or secrets."""
 
-    def __init__(self, settings: Settings, providers: Providers, limits: LimitService) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        providers: Providers,
+        limits: LimitService,
+        library: PromptLibrary | None = None,
+    ) -> None:
         self._settings = settings
         self._providers = providers
         self._limits = limits
+        self._library = library
         self._safety = SafetyService(providers.moderator, providers.text, settings.config.safety)
 
+    async def _library_example(self, req: CreateRequest) -> GenerationResult | None:
+        """The cached image for an unchanged library prompt with no style, else None."""
+        if self._library is None or req.style:
+            return None
+        if len(req.text) > self._settings.config.safety.max_input_chars * 4:
+            return None  # the normal path rejects it
+        prompt = self._library.find(req.text)
+        if prompt is None:
+            return None
+        try:
+            image = await asyncio.to_thread(self._library.image_path(prompt).read_bytes)
+        except OSError:
+            logger.warning("prompt library: cannot read the image for '%s'", prompt.id)
+            return None  # no cached image: fall back to a real generation
+        logger.info(
+            "generation model=%s outcome=cached device=%s",
+            LIBRARY_MODEL_KEY,
+            req.device_hash or "-",
+        )
+        return GenerationResult(
+            image=image,
+            final_prompt=compose_prompt(prompt.image_text()),
+            model_key=LIBRARY_MODEL_KEY,
+            seconds=0.0,
+            est_cost=0.0,
+            cached=True,
+        )
+
     async def create(self, req: CreateRequest) -> GenerationResult:
+        if example := await self._library_example(req):
+            return example
         model_key = self._settings.models.defaults.create_model
         started = time.perf_counter()
         cost = 0.0
