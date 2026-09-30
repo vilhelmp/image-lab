@@ -3,7 +3,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from src.config import Settings, load_settings
+from src.config import CONFIG_DIR, DEFAULT_ENV_FILE, Settings, load_env_file, load_settings
 from src.i18n import LOCALES_DIR, I18n, key_mismatches, load_catalogs
 
 
@@ -145,6 +145,54 @@ def test_placeholder_model_ids_stop_startup(make_settings):
 def test_secrets_are_not_part_of_serialised_settings(make_settings):
     dumped = make_settings().model_dump_json()
     assert "OPENAI_API_KEY" not in dumped and "PASSWORD" not in dumped
+
+
+def test_env_file_lives_one_folder_above_the_repository():
+    assert DEFAULT_ENV_FILE == CONFIG_DIR.parent.parent / ".env"
+    assert CONFIG_DIR.parent not in DEFAULT_ENV_FILE.parents
+
+
+def test_env_file_sets_only_allowed_names_and_never_overrides(tmp_path):
+    file = tmp_path / ".env"
+    file.write_text(
+        "# comment\n"
+        "\n"
+        "OPENAI_API_KEY='from-file'\n"
+        'export HF_TOKEN="hf-from-file"\n'
+        "FAL_KEY=already-set-in-the-file\n"
+        "WORKSHOP_PASSWORD=\n"
+        "OTHER_PROJECT_SECRET=leak\n"
+        "no equals sign\n"
+        "ADMIN_PASSWORD=has=equals#and-hash\n",
+        encoding="utf-8",
+    )
+    env = {"FAL_KEY": "from-the-shell"}
+    loaded = load_env_file(file, env)
+    assert sorted(loaded) == ["ADMIN_PASSWORD", "HF_TOKEN", "OPENAI_API_KEY"]
+    assert env == {
+        "FAL_KEY": "from-the-shell",
+        "OPENAI_API_KEY": "from-file",
+        "HF_TOKEN": "hf-from-file",
+        "ADMIN_PASSWORD": "has=equals#and-hash",
+    }
+
+
+def test_env_file_result_never_contains_values(tmp_path):
+    file = tmp_path / ".env"
+    file.write_text("OPENAI_API_KEY=sk-secret-value\n", encoding="utf-8")
+    assert "sk-secret-value" not in " ".join(load_env_file(file, {}))
+
+
+def test_missing_env_file_is_fine(tmp_path):
+    assert load_env_file(tmp_path / "nope.env", {}) == []
+
+
+def test_env_file_path_can_be_overridden(tmp_path):
+    file = tmp_path / "custom.env"
+    file.write_text("HF_TOKEN=hf-custom\n", encoding="utf-8")
+    env = {"ENV_FILE": str(file)}
+    assert load_env_file(env=env) == ["HF_TOKEN"]
+    assert env["HF_TOKEN"] == "hf-custom"
 
 
 def test_locale_keys_match_across_all_files():

@@ -1,10 +1,11 @@
 """Run tests/safety_cases.yaml against the real moderation and policy services.
 
-    uv run python scripts/run_safety_cases.py
+    uv run python -m scripts.run_safety_cases
 
-Needs the real secrets in the environment (OPENAI_API_KEY and the image backend's key), so run it
-locally before the workshop, never in CI. It prints one line per case and exits 1 on any failure.
-It only calls the prompt check (moderation API plus policy LLM); it generates no images.
+Needs the real secrets (OPENAI_API_KEY and the image backend's key) in the environment or in the
+.env file one folder above the repo. Run it locally before the workshop, never in CI. It prints
+one line per case and exits 1 on any failure. It only calls the prompt check (moderation API plus
+policy LLM); it generates no images.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ from pathlib import Path
 
 import yaml
 
-from src.config import load_settings
+from src.config import load_env_file, load_settings
 from src.errors import CheckFailedError, SafetyRefusalError
 from src.providers.factory import build_providers
 from src.services.safety import SafetyService
@@ -37,6 +38,7 @@ async def run_case(service: SafetyService, case: dict) -> tuple[bool, str]:
 
 
 async def main() -> int:
+    load_env_file()
     settings = load_settings()
     if settings.development_mode:
         print("Development mode uses fakes; unset DEVELOPMENT_MODE to test the real services.")

@@ -8,7 +8,7 @@ from typing import Any
 
 import gradio as gr
 
-from src.config import Settings, load_settings
+from src.config import Settings, load_env_file, load_settings
 from src.i18n import I18n
 from src.providers.factory import Providers, build_providers
 from src.services.access import build_auth
@@ -181,6 +181,9 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
+    loaded = load_env_file()
+    if loaded:
+        logger.info("Read %d variable(s) from the .env file: %s", len(loaded), ", ".join(loaded))
     settings = load_settings()
     problems = settings.startup_problems(os.environ)
     if problems:

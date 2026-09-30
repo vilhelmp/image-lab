@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 from pathlib import Path
 from typing import Any, Literal
 
@@ -13,10 +13,14 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from src.services.access import ADMIN_ENV, WORKSHOP_ENV, password_problems
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+# Kept outside the repository so a secret can never be committed by accident.
+DEFAULT_ENV_FILE = CONFIG_DIR.parent.parent / ".env"
 
 LocalizedText = dict[str, str]
 PLACEHOLDER_MARK = "<verify"
 REAL_SECRET_NAMES = ("FAL_KEY", "HF_TOKEN", "OPENAI_API_KEY")
+# Only these are read from a .env file, so a shared file cannot leak other projects' secrets in.
+ENV_FILE_KEYS = frozenset({*REAL_SECRET_NAMES, WORKSHOP_ENV, ADMIN_ENV, "DEVELOPMENT_MODE"})
 
 
 class _Strict(BaseModel):
@@ -256,6 +260,33 @@ def _read_yaml(path: Path) -> dict[str, Any]:
 
 def _truthy(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def load_env_file(
+    path: Path | None = None, env: MutableMapping[str, str] | None = None
+) -> list[str]:
+    """Copy the allowed KEY=VALUE lines of a .env file into the environment.
+
+    Variables that are already set win, so Space secrets and shell values are never overridden.
+    Returns the names that were set, never their values.
+    """
+    env = os.environ if env is None else env
+    file = path or Path(env.get("ENV_FILE") or DEFAULT_ENV_FILE)
+    if not file.is_file():
+        return []
+    loaded: list[str] = []
+    for line in file.read_text(encoding="utf-8-sig").splitlines():
+        line = line.strip().removeprefix("export ").strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, _, value = line.partition("=")
+        name, value = name.strip(), value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if name in ENV_FILE_KEYS and value and name not in env:
+            env[name] = value
+            loaded.append(name)
+    return loaded
 
 
 def load_settings(config_dir: Path = CONFIG_DIR, env: Mapping[str, str] | None = None) -> Settings:
