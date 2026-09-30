@@ -39,8 +39,8 @@ REWRITABLE = frozenset({"real_person", "character", "other"})
 _CHARACTER_RULES = {
     "allow": "Trademarked or copyrighted characters are allowed.",
     "redirect": (
-        'Block named trademarked or copyrighted characters (category "character"). '
-        "Offer a rewrite of a new character inspired by them."
+        'Block named trademarked or copyrighted characters (category "character"). In "rewrite" '
+        "describe a new original character inspired by them, with similar general traits."
     ),
     "block": (
         'Block named trademarked or copyrighted characters (category "character"). Give no rewrite.'
@@ -58,8 +58,10 @@ figures and private individuals ("real_person"). {characters}
 Harmless uses of sensitive-sounding words are allowed: cocktails, mermaids, children bathing at a \
 lake, cartoon-style non-graphic themes.
 For "real_person", "character" or "other" you may give a short family-friendly alternative as \
-"rewrite", written in the given language. Never give a rewrite for the other categories. When the \
-idea is fine use allowed=true, category=null, rewrite=null."""
+"rewrite", written in the given language. The rewrite must never contain the name of the original \
+person or character, or of the franchise they belong to; describe a new fictional one instead. \
+Never give a rewrite for the other categories. When the idea is fine use allowed=true, \
+category=null, rewrite=null."""
 
 
 def policy_system_prompt(characters: str) -> str:

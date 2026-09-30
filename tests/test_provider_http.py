@@ -154,6 +154,31 @@ async def test_an_unusable_reply_is_a_provider_error(response):
         await _call(Recorder(response))
 
 
+async def test_logs_hold_the_error_code_but_never_the_message(caplog):
+    caplog.set_level(logging.DEBUG)
+    body = {"error": {"code": "insufficient_permissions", "message": "echoes: SECRET-PROMPT"}}
+    with pytest.raises(ProviderError):
+        await _call(Recorder(httpx.Response(401, json=body)))
+    assert "HTTP 401 (insufficient_permissions)" in caplog.text
+    assert "SECRET-PROMPT" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"error": {"code": "Has Spaces And Text"}},
+        {"error": "text"},
+        ["x"],
+        {"error": {"code": None}},
+    ],
+)
+async def test_an_error_code_that_is_not_code_shaped_is_not_logged(caplog, body):
+    caplog.set_level(logging.DEBUG)
+    with pytest.raises(ProviderError):
+        await _call(Recorder(httpx.Response(400, json=body)))
+    assert "HTTP 400 (-)" in caplog.text
+
+
 async def test_logs_and_errors_never_hold_bodies_or_keys(caplog):
     caplog.set_level(logging.DEBUG)
     recorder = Recorder(httpx.Response(503, text="SECRET-BODY-CONTENT"), _ok())

@@ -17,10 +17,10 @@ from pathlib import Path
 
 import yaml
 
-from src.config import load_env_file, load_settings
-from src.errors import CheckFailedError, SafetyRefusalError
+from src.config import env_file_path, load_env_file, load_settings
+from src.errors import AppError, CheckFailedError, SafetyRefusalError
 from src.providers.factory import build_moderator, build_text
-from src.services.safety import SafetyService
+from src.services.safety import SafetyService, policy_system_prompt
 
 CASES_FILE = Path(__file__).resolve().parent.parent / "tests" / "safety_cases.yaml"
 CONCURRENCY = 4
@@ -32,13 +32,16 @@ async def run_case(service: SafetyService, case: dict) -> tuple[bool, str]:
         await service.check_prompt(case["prompt"], case["lang"])
     except SafetyRefusalError as refusal:
         outcome = "redirect" if refusal.rewrite else "block"
-        return outcome == case["expect"], f"{outcome} ({refusal.code})"
+        detail = f" -> {refusal.rewrite}" if refusal.rewrite else ""
+        return outcome == case["expect"], f"{outcome} ({refusal.code}){detail}"
     except CheckFailedError:
         return False, "check failed (fail closed)"
     return case["expect"] == "allow", "allow"
 
 
 async def main() -> int:
+    sys.stdout.reconfigure(encoding="utf-8")  # Swedish text in the alternatives
+    from_shell = bool(os.environ.get("OPENAI_API_KEY"))
     load_env_file()
     settings = load_settings()
     if settings.development_mode:
@@ -48,7 +51,18 @@ async def main() -> int:
     if missing:
         print(f"Missing: {', '.join(missing)} (set it in the shell or the .env file).")
         return 2
-    service = SafetyService(build_moderator(settings), build_text(settings), settings.config.safety)
+    key = os.environ["OPENAI_API_KEY"]
+    source = "the shell" if from_shell else str(env_file_path())
+    print(f"Using OPENAI_API_KEY ending ...{key[-4:]} from {source}")
+    text = build_text(settings)
+    try:  # one cheap call first, so a key problem shows once instead of 40 times
+        await text.complete_json(
+            "policy_check", policy_system_prompt("redirect"), '{"language":"en","text":"a cat"}'
+        )
+    except AppError:
+        print("The text model call failed; see the log line above. Fix the key or model first.")
+        return 2
+    service = SafetyService(build_moderator(settings), text, settings.config.safety)
     cases = yaml.safe_load(CASES_FILE.read_text(encoding="utf-8"))["cases"]
 
     gate = asyncio.Semaphore(CONCURRENCY)
@@ -58,12 +72,17 @@ async def main() -> int:
             return await run_case(service, case)
 
     results = await asyncio.gather(*(guarded(case) for case in cases))
-    failures = 0
+    failures = known = 0
     for case, (passed, actual) in zip(cases, results, strict=True):
-        failures += not passed
-        mark = "PASS" if passed else "FAIL"
-        print(f"{mark}  {case['id']:<28} want {case['expect']:<8} got {actual}")
-    print(f"\n{len(cases) - failures}/{len(cases)} passed")
+        if passed:
+            mark = "PASS"
+        elif case.get("known_issue"):
+            mark, known = "KNOWN", known + 1
+        else:
+            mark, failures = "FAIL", failures + 1
+        print(f"{mark:<5} {case['id']:<28} want {case['expect']:<8} got {actual}")
+    passed_count = len(cases) - failures - known
+    print(f"\n{passed_count}/{len(cases)} passed, {known} known issue(s), {failures} failed")
     return 1 if failures else 0
 
 

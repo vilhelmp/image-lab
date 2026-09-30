@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import re
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -25,6 +26,7 @@ RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 BACKOFF_BASE_SECONDS = 0.5
 BACKOFF_CAP_SECONDS = 4.0
 JITTER_SECONDS = 0.25
+_CODE_SHAPE = re.compile(r"[a-z0-9_.-]{1,60}")
 
 
 def _backoff(attempt: int, retry_after: str | None, rand: Callable[[], float]) -> float:
@@ -90,11 +92,13 @@ async def _attempts(
             if status < 400:
                 return _json_object(response, what)
             if status not in RETRY_STATUSES:
-                logger.error("%s: HTTP %d, not retried", what, status)
+                logger.error("%s: HTTP %d (%s), not retried", what, status, _error_code(response))
                 raise ProviderError
             failure = RateLimitedError() if status == 429 else ProviderError()
             retry_after = response.headers.get("retry-after")
-            logger.warning("%s: HTTP %d (attempt %d)", what, status, attempt + 1)
+            logger.warning(
+                "%s: HTTP %d (%s) (attempt %d)", what, status, _error_code(response), attempt + 1
+            )
         if attempt == MAX_RETRIES:
             break
         delay = _backoff(attempt, retry_after, rand)
@@ -102,6 +106,23 @@ async def _attempts(
             break
         await sleep(delay)
     raise failure
+
+
+def _error_code(response: httpx.Response) -> str:
+    """The provider's short machine code for an error (for example "invalid_api_key"), or "-".
+
+    Only a code-shaped token is returned, never the message, which could echo request content.
+    """
+    try:
+        error = response.json().get("error")
+    except (ValueError, AttributeError):
+        return "-"
+    if isinstance(error, dict):
+        for key in ("code", "type"):
+            value = error.get(key)
+            if isinstance(value, str) and _CODE_SHAPE.fullmatch(value):
+                return value
+    return "-"
 
 
 def _json_object(response: httpx.Response, what: str) -> dict[str, Any]:
