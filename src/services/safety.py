@@ -11,24 +11,30 @@ import logging
 import unicodedata
 from typing import Literal, get_args
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, StrictBool, ValidationError, model_validator
 
 from src.config import SafetySection
-from src.errors import CheckFailedError, EmptyInputError, SafetyRefusalError, TooLongInputError
+from src.errors import (
+    CheckFailedError,
+    EmptyInputError,
+    MalformedReplyError,
+    SafetyRefusalError,
+    TooLongInputError,
+)
 from src.providers.base import ModerationResult, Moderator, TextProvider
 
 logger = logging.getLogger(__name__)
 
 POLICY_TIMEOUT_SECONDS = 15
-POLICY_MAX_TOKENS = 150
+POLICY_MAX_TOKENS = 200
 POLICY_RETRIES = 1
 
 PolicyCategory = Literal[
     "sexual", "minors", "violence", "hate", "self_harm", "real_person", "character", "other"
 ]
 POLICY_CATEGORIES = frozenset(get_args(PolicyCategory))
-# A blocked idea in these categories never gets a suggested alternative.
-NO_REWRITE = frozenset({"sexual", "minors", "violence", "hate", "self_harm"})
+# Only an explicit verdict in these categories may come with a suggested alternative.
+REWRITABLE = frozenset({"real_person", "character", "other"})
 
 _CHARACTER_RULES = {
     "allow": "Trademarked or copyrighted characters are allowed.",
@@ -61,9 +67,15 @@ def policy_system_prompt(characters: str) -> str:
 
 
 class PolicyVerdict(BaseModel):
-    allowed: bool
+    allowed: StrictBool
     category: str | None = None
     rewrite: str | None = None
+
+    @model_validator(mode="after")
+    def _allowed_means_nothing_else(self) -> PolicyVerdict:
+        if self.allowed and (self.category is not None or self.rewrite is not None):
+            raise ValueError("an allowed verdict must not carry a category or rewrite")
+        return self
 
 
 def clean_text(text: str | None) -> str:
@@ -112,10 +124,12 @@ class SafetyService:
                 raise outcome
         if isinstance(moderation, ModerationResult) and moderation.flagged:
             raise SafetyRefusalError(code=moderation.code or "other")
-        if isinstance(policy, PolicyVerdict) and (refusal := self._refusal(policy)):
+        refusal = self._refusal(policy) if isinstance(policy, PolicyVerdict) else None
+        if refusal:
             category, rewrite = refusal
-            raise SafetyRefusalError(code=category, rewrite=await self._safe_rewrite(rewrite))
-        if isinstance(moderation, Exception) or isinstance(policy, Exception):
+            raise SafetyRefusalError(code=category, rewrite=await self._safe_rewrite(rewrite, lang))
+        # Pass only on two explicit, clean verdicts. Anything else is a check that did not run.
+        if not (isinstance(moderation, ModerationResult) and isinstance(policy, PolicyVerdict)):
             raise CheckFailedError
 
     async def check_image(self, image: bytes) -> None:
@@ -146,17 +160,17 @@ class SafetyService:
             raise CheckFailedError from exc
         return verdict
 
-    async def _policy(self, final_prompt: str, lang: str) -> PolicyVerdict:
-        payload = json.dumps({"language": lang, "text": final_prompt}, ensure_ascii=False)
+    async def _policy(self, text: str, lang: str) -> PolicyVerdict:
+        payload = json.dumps({"language": lang, "text": text}, ensure_ascii=False)
         try:
             async with asyncio.timeout(POLICY_TIMEOUT_SECONDS):
                 for _ in range(POLICY_RETRIES + 1):
-                    raw = await self._text.complete_json(
-                        "policy_check", self._policy_prompt, payload, POLICY_MAX_TOKENS
-                    )
                     try:
+                        raw = await self._text.complete_json(
+                            "policy_check", self._policy_prompt, payload, POLICY_MAX_TOKENS
+                        )
                         return PolicyVerdict.model_validate(raw)
-                    except ValidationError:
+                    except (MalformedReplyError, ValidationError):
                         logger.warning("Policy check returned an unusable reply")
         except Exception as exc:
             _log_failure("policy check", exc)
@@ -173,18 +187,30 @@ class SafetyService:
             return None
         offer = (
             self._config.offer_safe_rewrite
-            and category not in NO_REWRITE
+            and verdict.category in REWRITABLE
             and (category != "character" or characters == "redirect")
         )
         return category, verdict.rewrite if offer else None
 
-    async def _safe_rewrite(self, rewrite: str | None) -> str | None:
-        """Keep a suggested alternative only if it is clean text that passes moderation."""
+    async def _safe_rewrite(self, rewrite: str | None, lang: str) -> str | None:
+        """Keep a suggested alternative only if it is clean text that passes both checks.
+
+        The alternative comes from an LLM, so it gets the same moderation and policy check as a
+        visitor's idea, in parallel. Any doubt drops it.
+        """
         cleaned = clean_text(rewrite)
         if not cleaned or len(cleaned) > self._config.max_input_chars:
             return None
-        try:
-            await self.check_generated_text(cleaned)
-        except CheckFailedError:
-            return None
-        return cleaned
+        moderation, policy = await asyncio.gather(
+            self._moderate_text(cleaned), self._policy(cleaned, lang), return_exceptions=True
+        )
+        for outcome in (moderation, policy):
+            if isinstance(outcome, BaseException) and not isinstance(outcome, Exception):
+                raise outcome
+        clean = (
+            isinstance(moderation, ModerationResult)
+            and not moderation.flagged
+            and isinstance(policy, PolicyVerdict)
+            and self._refusal(policy) is None
+        )
+        return cleaned if clean else None

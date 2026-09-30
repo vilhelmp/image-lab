@@ -195,6 +195,41 @@ def test_env_file_path_can_be_overridden(tmp_path):
     assert env["HF_TOKEN"] == "hf-custom"
 
 
+def test_env_file_last_duplicate_wins_and_inline_comments_are_cut(tmp_path):
+    file = tmp_path / ".env"
+    file.write_text(
+        "OPENAI_API_KEY=first\nOPENAI_API_KEY=second # a note\nHF_TOKEN='quoted # kept'\n",
+        encoding="utf-8",
+    )
+    env: dict[str, str] = {}
+    load_env_file(file, env)
+    assert env == {"OPENAI_API_KEY": "second", "HF_TOKEN": "quoted # kept"}
+
+
+def test_an_empty_shell_variable_does_not_block_the_file_value(tmp_path):
+    file = tmp_path / ".env"
+    file.write_text("OPENAI_API_KEY=from-file\n", encoding="utf-8")
+    env = {"OPENAI_API_KEY": ""}
+    assert load_env_file(file, env) == ["OPENAI_API_KEY"]
+    assert env["OPENAI_API_KEY"] == "from-file"
+
+
+def test_a_placeholder_moderation_model_stops_startup(make_settings):
+    def placeholder(models):
+        models["moderation_model"] = "<verify: moderation model>"
+
+    settings = make_settings(models=placeholder)
+    env = dict.fromkeys(settings.required_secrets(), "x" * 24)
+    assert any("moderation model" in p for p in settings.startup_problems(env))
+
+
+def test_text_and_moderation_models_are_verified_in_the_real_config():
+    settings = load_settings(env={})
+    helper = settings.models.text_models[settings.models.defaults.text_model]
+    assert helper.api_model == "gpt-6-luna" and helper.reasoning_effort == "none"
+    assert settings.models.moderation_model == "omni-moderation-latest"
+
+
 def test_locale_keys_match_across_all_files():
     files = sorted(LOCALES_DIR.glob("*.json"))
     assert len(files) >= 2

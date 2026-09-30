@@ -23,6 +23,19 @@ class ProviderTimeoutError(AppError):
     message_key = "error.timeout"
 
 
+class ProviderError(AppError):
+    """A provider call failed or returned something unusable. Details stay in server logs."""
+
+    code = "provider_error"
+    message_key = "error.generic"
+
+
+class MalformedReplyError(ProviderError):
+    """The provider answered, but not with usable JSON. Worth one retry, unlike a refusal."""
+
+    code = "malformed_reply"
+
+
 class RateLimitedError(AppError):
     code = "rate_limited"
     message_key = "error.busy"

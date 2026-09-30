@@ -8,7 +8,7 @@ from typing import Any
 
 import gradio as gr
 
-from src.config import Settings, load_env_file, load_settings
+from src.config import Settings, env_file_path, load_env_file, load_settings
 from src.i18n import I18n
 from src.providers.factory import Providers, build_providers
 from src.services.access import build_auth
@@ -183,7 +183,9 @@ def main() -> None:
 
     loaded = load_env_file()
     if loaded:
-        logger.info("Read %d variable(s) from the .env file: %s", len(loaded), ", ".join(loaded))
+        logger.info(
+            "Read %d variable(s) from %s: %s", len(loaded), env_file_path(), ", ".join(loaded)
+        )
     settings = load_settings()
     problems = settings.startup_problems(os.environ)
     if problems:

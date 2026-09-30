@@ -67,15 +67,15 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [ ] `src/providers/fal.py` image adapter
 - [ ] `src/providers/hf_inference.py` image adapter (parity with fal)
 - [ ] `image_backend: fal | hf` switch; hide models without `hf_model`; startup secret validation
-- [ ] `src/providers/openai_text.py`: improve, surprise, policy check with structured JSON, one retry, graceful fallback
-- [ ] `src/providers/openai_moderation.py`: text and image moderation
+- [ ] `src/providers/openai_text.py`: improve, surprise, policy check with structured JSON, one retry, graceful fallback. Done: the adapter (strict JSON schema per task, `gpt-6-luna`) and the policy check with one retry on malformed replies. Open: the Help me and Surprise me service wiring
+- [x] `src/providers/openai_moderation.py`: text and image moderation
 - [x] `src/services/safety.py`: final-prompt moderation and policy check in parallel (`asyncio.gather`), fail closed on errors and malformed output
 - [ ] Moderate every LLM output (translation, rewrite, help-me, surprise) before composing or showing it, including `SafetyRefusalError.rewrite`. Done: `SafetyService.check_generated_text` and the moderated rewrite. Open: wire it into translation, Help me and Surprise me when they exist
-- [ ] Adapters map provider moderation categories to a fixed internal code set and raise on empty or unknown results. Done: the code set and the `ModerationResult` validation in `base.py`. Open: the adapters
+- [x] Adapters map provider moderation categories to a fixed internal code set and raise on empty or unknown results
 - [ ] Keep `FakeModerator` only with fake image providers (development mode on a Space with real secrets is already refused at startup). `build_providers` only builds fakes in development mode today; re-check when the real providers land
 - [x] Output-image moderation before display
 - [x] Character policy (`allow | redirect | block`) and safe-rewrite card
-- [ ] Retries only on 429, selected 5xx and timeouts, max 2, with jitter
+- [x] Retries only on 429, selected 5xx and timeouts, max 2, with jitter (`src/providers/http.py`, hard total deadline). Before reusing it for image POSTs: do not retry a request that may already have been billed
 - [ ] Help me and Surprise me buttons with Undo
 - [x] `tests/safety_cases.yaml` (about 40 SV and EN cases) and `test_safety.py`. The CI replay uses table-driven fakes, so it checks the pipeline logic, not any model's judgement
 - [ ] Script to run safety cases against real services and print pass or fail. `scripts/run_safety_cases.py` is written; it needs the real adapters and keys to run
@@ -143,4 +143,5 @@ Record decisions, blockers and open questions here.
 - No iPad available yet. The iPad items stay open until a real device (or a borrowed one) is tested.
 - 2026-09-29: Phase 2 safety review (`@safety-reviewer`): fixed a budget refund after a paid image, the cancelled-request outcome, per-device state leaks and startup guards. Accepted: a workshop-password holder can invent device ids to dodge the per-device cooldown (ids are unsigned); the global per-minute rate and the budget still apply. The kill switch is in memory, so a Space restart resumes generation. `max_generations_per_minute: 30` may be tight for 10+ iPads; tune it after the Phase 5 test.
 - Load testing the Space now needs `EXPOSE_API=true` as a Space variable and `LOAD_TEST_PASSWORD` in the shell; remove `EXPOSE_API` afterwards.
+- 2026-09-30: Phase 3 safety review (`@safety-reviewer`) found one HIGH (a contradictory policy verdict such as allowed with a category was accepted), now fixed with tests, plus request deadline, alternative policy check, error typing and `.env` loader fixes. Open risks: OpenAI image moderation only covers sexual, violence and self-harm, so hate imagery, minors-specific sexual content, harassment, real-person likeness and trademarked characters in OUTPUT images rely on the prompt checks and the image provider's own safety settings; consider lower `category_scores` thresholds after the first real safety-cases run. The parent-folder `.env` may be shared with other projects, so check the startup log line for which file and names were read.
 - 2026-09-29: The first load test (10 visitors, pauses of 0-3 s, about 2.3 Creates/s from one IP) got 21% failures, all HTTP 429 from the `.hf.space` edge (image downloads and the event stream). The paced run (pauses of 0-20 s, about 0.8 Creates/s) had none. Unknown whether HF throttles per IP; venue iPads will likely share one IP, so watch for 429s in the Phase 5 test with several devices.

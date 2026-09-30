@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from src.config import Settings
@@ -12,6 +14,8 @@ from src.providers.fake import (
     FakeModerator,
     FakeTextProvider,
 )
+from src.providers.openai_moderation import OpenAIModerator
+from src.providers.openai_text import OpenAITextProvider
 
 
 @dataclass(frozen=True)
@@ -22,7 +26,20 @@ class Providers:
     moderator: Moderator
 
 
-def build_providers(settings: Settings) -> Providers:
+def build_moderator(settings: Settings, env: Mapping[str, str] | None = None) -> Moderator:
+    env = os.environ if env is None else env
+    return OpenAIModerator(env["OPENAI_API_KEY"], model=settings.models.moderation_model)
+
+
+def build_text(settings: Settings, env: Mapping[str, str] | None = None) -> TextProvider:
+    env = os.environ if env is None else env
+    model = settings.models.text_models[settings.models.defaults.text_model]
+    return OpenAITextProvider(
+        env["OPENAI_API_KEY"], model=model.api_model, reasoning_effort=model.reasoning_effort
+    )
+
+
+def build_providers(settings: Settings, env: Mapping[str, str] | None = None) -> Providers:
     if settings.development_mode:
         delay = settings.config.app.fake_delay_seconds
         return Providers(
@@ -31,4 +48,4 @@ def build_providers(settings: Settings) -> Providers:
             text=FakeTextProvider(),
             moderator=FakeModerator(),
         )
-    raise NotImplementedError("Real providers arrive in phase 3. Set DEVELOPMENT_MODE=true.")
+    raise NotImplementedError("The real image providers arrive next. Set DEVELOPMENT_MODE=true.")

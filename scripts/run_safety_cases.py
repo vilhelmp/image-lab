@@ -11,6 +11,7 @@ policy LLM); it generates no images.
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -18,7 +19,7 @@ import yaml
 
 from src.config import load_env_file, load_settings
 from src.errors import CheckFailedError, SafetyRefusalError
-from src.providers.factory import build_providers
+from src.providers.factory import build_moderator, build_text
 from src.services.safety import SafetyService
 
 CASES_FILE = Path(__file__).resolve().parent.parent / "tests" / "safety_cases.yaml"
@@ -43,8 +44,11 @@ async def main() -> int:
     if settings.development_mode:
         print("Development mode uses fakes; unset DEVELOPMENT_MODE to test the real services.")
         return 2
-    providers = build_providers(settings)
-    service = SafetyService(providers.moderator, providers.text, settings.config.safety)
+    missing = [name for name in ("OPENAI_API_KEY",) if not os.environ.get(name)]
+    if missing:
+        print(f"Missing: {', '.join(missing)} (set it in the shell or the .env file).")
+        return 2
+    service = SafetyService(build_moderator(settings), build_text(settings), settings.config.safety)
     cases = yaml.safe_load(CASES_FILE.read_text(encoding="utf-8"))["cases"]
 
     gate = asyncio.Semaphore(CONCURRENCY)

@@ -10,6 +10,8 @@ from pydantic import ValidationError
 from src.errors import (
     CheckFailedError,
     EmptyInputError,
+    MalformedReplyError,
+    ProviderError,
     SafetyRefusalError,
     TooLongInputError,
 )
@@ -70,7 +72,7 @@ class ScriptedText(TextProvider):
         self.systems.append(system)
         await asyncio.sleep(self.delay)
         reply = self.replies.pop(0) if len(self.replies) > 1 else self.replies[0]
-        if isinstance(reply, Exception):
+        if isinstance(reply, BaseException):
             raise reply
         return reply
 
@@ -169,7 +171,7 @@ async def test_a_flagged_prompt_never_gets_an_alternative(make_service):
 
 async def test_real_person_is_refused_with_a_suggestion(make_service):
     with pytest.raises(SafetyRefusalError) as info:
-        await make_service(ScriptedText(_blocked())).check_prompt("my friend Emma", "sv")
+        await make_service(ScriptedText(_blocked(), ALLOWED)).check_prompt("my friend Emma", "sv")
     assert info.value.code == "real_person" and info.value.rewrite == "a fictional explorer"
 
 
@@ -196,7 +198,9 @@ async def test_character_modes(make_service):
     verdict = _blocked("character", "a mouse inspired by cartoons")
     await make_service(ScriptedText(verdict), characters="allow").check_prompt("x", "sv")
     with pytest.raises(SafetyRefusalError) as redirect:
-        await make_service(ScriptedText(verdict), characters="redirect").check_prompt("x", "sv")
+        await make_service(ScriptedText(verdict, ALLOWED), characters="redirect").check_prompt(
+            "x", "sv"
+        )
     assert redirect.value.rewrite == "a mouse inspired by cartoons"
     with pytest.raises(SafetyRefusalError) as block:
         await make_service(ScriptedText(verdict), characters="block").check_prompt("x", "sv")
@@ -223,12 +227,70 @@ async def test_a_suggestion_that_fails_moderation_is_dropped(make_service):
 async def test_a_suggestion_is_cleaned_and_length_limited(make_service):
     with pytest.raises(SafetyRefusalError) as cleaned:
         await make_service(
-            ScriptedText(_blocked(rewrite="a\x00  brave\u200b\nexplorer"))
+            ScriptedText(_blocked(rewrite="a\x00  brave\u200b\nexplorer"), ALLOWED)
         ).check_prompt("x", "sv")
     assert cleaned.value.rewrite == "a brave explorer"
     with pytest.raises(SafetyRefusalError) as long:
-        await make_service(ScriptedText(_blocked(rewrite="x" * 500))).check_prompt("x", "sv")
+        await make_service(ScriptedText(_blocked(rewrite="x" * 500), ALLOWED)).check_prompt(
+            "x", "sv"
+        )
     assert long.value.rewrite is None
+
+
+async def test_a_suggestion_gets_the_same_policy_check_as_an_idea(make_service):
+    text = ScriptedText(_blocked(), _blocked("real_person", "another person"))
+    with pytest.raises(SafetyRefusalError) as info:
+        await make_service(text).check_prompt("my friend Emma", "sv")
+    assert info.value.rewrite is None
+    assert json.loads(text.users[1])["text"] == "a fictional explorer"
+
+
+async def test_a_suggestion_is_dropped_when_its_policy_check_fails(make_service):
+    text = ScriptedText(_blocked(), RuntimeError("boom"))
+    with pytest.raises(SafetyRefusalError) as info:
+        await make_service(text).check_prompt("my friend Emma", "sv")
+    assert info.value.code == "real_person" and info.value.rewrite is None
+
+
+@pytest.mark.parametrize("category", [None, "made_up"])
+async def test_no_suggestion_without_an_explicit_rewritable_category(make_service, category):
+    text = ScriptedText({"allowed": False, "category": category, "rewrite": "a nice idea"}, ALLOWED)
+    with pytest.raises(SafetyRefusalError) as info:
+        await make_service(text).check_prompt("x", "sv")
+    assert info.value.code == "other" and info.value.rewrite is None
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        {"allowed": True, "category": "real_person", "rewrite": None},
+        {"allowed": True, "category": None, "rewrite": "sneaky"},
+        {"allowed": "no", "category": None, "rewrite": None},
+        {"allowed": "false", "category": None, "rewrite": None},
+        {"allowed": 1, "category": None, "rewrite": None},
+        {"allowed": None, "category": None, "rewrite": None},
+    ],
+)
+async def test_a_contradictory_or_loose_verdict_is_unusable_and_fails_closed(make_service, reply):
+    text = ScriptedText(reply)
+    with pytest.raises(CheckFailedError):
+        await make_service(text).check_prompt("x", "sv")
+    assert len(text.users) == 2  # retried once
+
+
+async def test_malformed_provider_replies_are_retried_once_but_refusals_are_not(make_service):
+    text = ScriptedText(MalformedReplyError(), ALLOWED)
+    await make_service(text).check_prompt("x", "sv")
+    assert len(text.users) == 2
+    refused = ScriptedText(ProviderError(), ALLOWED)
+    with pytest.raises(CheckFailedError):
+        await make_service(refused).check_prompt("x", "sv")
+    assert len(refused.users) == 1
+
+
+async def test_cancellation_is_never_swallowed_by_the_checks(make_service):
+    with pytest.raises(asyncio.CancelledError):
+        await make_service(ScriptedText(asyncio.CancelledError())).check_prompt("x", "sv")
 
 
 async def test_image_check_refuses_flagged_images(make_service):

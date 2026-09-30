@@ -39,10 +39,14 @@ edit_models:
 text_models:
   helper:
     provider: openai
-    api_model: "<verify: small fast model>"
+    api_model: "gpt-6-luna" # verified in OpenAI docs 2026-09-30: $0.10 in / $0.50 out per 1M tokens
+    reasoning_effort: none # fastest; the policy check and helpers need no reasoning
+
+moderation_model: "omni-moderation-latest" # free; text and image
 
 defaults:
   create_model: fast
   edit_model: default_edit
   compare_a: fast
   compare_b: quality
+  text_model: helper

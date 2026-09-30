@@ -125,6 +125,7 @@ class EditModel(_Strict):
 class TextModel(_Strict):
     provider: Literal["openai"]
     api_model: str
+    reasoning_effort: str | None = "none"  # sent as reasoning_effort; null omits it
 
 
 class Defaults(_Strict):
@@ -132,12 +133,14 @@ class Defaults(_Strict):
     edit_model: str
     compare_a: str
     compare_b: str
+    text_model: str = "helper"
 
 
 class ModelsConfig(_Strict):
     image_models: dict[str, ImageModel]
     edit_models: dict[str, EditModel]
     text_models: dict[str, TextModel]
+    moderation_model: str = "omni-moderation-latest"
     defaults: Defaults
 
 
@@ -167,6 +170,8 @@ class Settings(_Strict):
             raise ValueError("defaults.compare_a and compare_b must differ")
         if defaults.edit_model not in self.models.edit_models:
             raise ValueError(f"defaults.edit_model '{defaults.edit_model}' is not in edit_models")
+        if defaults.text_model not in self.models.text_models:
+            raise ValueError(f"defaults.text_model '{defaults.text_model}' is not in text_models")
         return self
 
     @property
@@ -242,6 +247,7 @@ class Settings(_Strict):
         model_ids += [
             (f"text model '{k}'", m.api_model) for k, m in self.models.text_models.items()
         ]
+        model_ids.append(("moderation model", self.models.moderation_model))
         problems += [
             f"{what} still has a placeholder model id"
             for what, mid in model_ids
@@ -262,19 +268,25 @@ def _truthy(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def env_file_path(env: Mapping[str, str] | None = None) -> Path:
+    env = os.environ if env is None else env
+    return Path(env.get("ENV_FILE") or DEFAULT_ENV_FILE)
+
+
 def load_env_file(
     path: Path | None = None, env: MutableMapping[str, str] | None = None
 ) -> list[str]:
     """Copy the allowed KEY=VALUE lines of a .env file into the environment.
 
-    Variables that are already set win, so Space secrets and shell values are never overridden.
-    Returns the names that were set, never their values.
+    Variables that are already set (and not empty) win, so Space secrets and shell values are never
+    overridden. If a name appears twice in the file the last one wins. Unquoted values end at a
+    " #" comment; quote a value that needs one. Returns the names set, never their values.
     """
     env = os.environ if env is None else env
-    file = path or Path(env.get("ENV_FILE") or DEFAULT_ENV_FILE)
+    file = path or env_file_path(env)
     if not file.is_file():
         return []
-    loaded: list[str] = []
+    found: dict[str, str] = {}
     for line in file.read_text(encoding="utf-8-sig").splitlines():
         line = line.strip().removeprefix("export ").strip()
         if not line or line.startswith("#") or "=" not in line:
@@ -283,7 +295,13 @@ def load_env_file(
         name, value = name.strip(), value.strip()
         if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
             value = value[1:-1]
-        if name in ENV_FILE_KEYS and value and name not in env:
+        else:
+            value = value.split(" #", 1)[0].strip()
+        if name in ENV_FILE_KEYS:
+            found[name] = value
+    loaded: list[str] = []
+    for name, value in found.items():
+        if value and not env.get(name):
             env[name] = value
             loaded.append(name)
     return loaded
