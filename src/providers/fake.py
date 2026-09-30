@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import io
+import json
 import textwrap
 import time
 from typing import Any
@@ -95,12 +96,14 @@ class FakeEditProvider(EditProvider):
 
 
 class FakeTextProvider(TextProvider):
+    """Canned JSON per task. The policy check reacts to markers so dev mode can show each outcome:
+    [real person], [character], [minors] and [malformed] (an unusable reply)."""
+
     def __init__(self, responses: dict[str, dict[str, Any]] | None = None) -> None:
         self.responses = responses or {
             "improve": {"prompt": "A friendly scene with soft evening light"},
             "surprise": {"prompt": "A whale reading a book on a Swedish island"},
             "edit_instruction": {"instruction": "Change the setting", "new_prompt": "A new scene"},
-            "policy_check": {"allowed": True, "category": None, "rewrite": None},
         }
         self.calls: list[str] = []
 
@@ -108,7 +111,30 @@ class FakeTextProvider(TextProvider):
         self, task: str, system: str, user: str, max_tokens: int = 200
     ) -> dict[str, Any]:
         self.calls.append(task)
+        if task == "policy_check" and task not in self.responses:
+            return self._policy(user)
         return dict(self.responses[task])
+
+    @staticmethod
+    def _policy(user: str) -> dict[str, Any]:
+        text = json.loads(user).get("text", "").lower()
+        if "[malformed]" in text:
+            return {"unexpected": True}
+        if "[real person]" in text:
+            return {
+                "allowed": False,
+                "category": "real_person",
+                "rewrite": "a fictional explorer with a warm smile",
+            }
+        if "[character]" in text:
+            return {
+                "allowed": False,
+                "category": "character",
+                "rewrite": "a friendly mouse inspired by classic cartoons",
+            }
+        if "[minors]" in text:
+            return {"allowed": False, "category": "minors", "rewrite": "a harmless scene"}
+        return {"allowed": True, "category": None, "rewrite": None}
 
 
 class FakeModerator(Moderator):
@@ -133,12 +159,12 @@ class FakeModerator(Moderator):
         if self.fail:
             raise RuntimeError("fake moderation failure")
         flagged = any(word in text.lower() for word in self.blocked_words)
-        return ModerationResult(flagged=flagged, code="fake_text" if flagged else None)
+        return ModerationResult(flagged=flagged, code="other" if flagged else None)
 
     async def moderate_image(self, image: bytes) -> ModerationResult:
         self.image_calls += 1
         if self.fail or self.fail_image:
             raise RuntimeError("fake moderation failure")
         return ModerationResult(
-            flagged=self.flag_images, code="fake_image" if self.flag_images else None
+            flagged=self.flag_images, code="other" if self.flag_images else None
         )

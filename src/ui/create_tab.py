@@ -11,7 +11,7 @@ from typing import Any
 import gradio as gr
 
 from src.config import Settings
-from src.errors import AppError, error_message_key
+from src.errors import AppError, SafetyRefusalError, error_message_key
 from src.services.generation import CreateRequest, GenerationService
 from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
@@ -34,6 +34,7 @@ class CreateTab:
     create_button: gr.Button
     status: gr.Markdown
     result: gr.Image
+    rewrite_card: gr.Button
 
     @property
     def managed(self) -> list[Block]:
@@ -44,6 +45,7 @@ class CreateTab:
             self.create_button,
             self.status,
             self.result,
+            self.rewrite_card,
         ]
 
     def reset_props(self) -> Updates:
@@ -53,6 +55,7 @@ class CreateTab:
             self.create_button: {"interactive": True},
             self.status: {"value": "", "visible": False},
             self.result: {"value": None, "visible": False},
+            self.rewrite_card: {"value": "", "visible": False},
             **{button: {"variant": "secondary"} for button in self.styles.values()},
         }
 
@@ -109,6 +112,7 @@ def build_create_tab(
         elem_classes=["primary-action"],
     )
     status = gr.Markdown(visible=False, elem_classes=["status-card"])
+    rewrite_card = gr.Button(visible=False, variant="secondary", elem_classes=["rewrite-card"])
     result = loc.make(
         gr.Image,
         lambda lang: {"label": t(lang, "create.result_label")},
@@ -118,7 +122,7 @@ def build_create_tab(
         buttons=["download"],
         elem_id="result-image",
     )
-    tab = CreateTab(text, styles, aspect, create_button, status, result)
+    tab = CreateTab(text, styles, aspect, create_button, status, result, rewrite_card)
 
     def style_handler(key: str) -> Handler:
         def on_style(current: VisitorSession) -> list[Any]:
@@ -158,6 +162,7 @@ def build_create_tab(
             gr.update(interactive=False),
             gr.update(value=t(lang, "create.working"), visible=True),
             gr.skip(),
+            gr.update(visible=False),
         )
         try:
             made = await service.create(
@@ -165,6 +170,7 @@ def build_create_tab(
                     text=idea,
                     style=current.style,
                     aspect=chosen_aspect,
+                    lang=lang,
                     device_hash=device_hash,
                 )
             )
@@ -172,12 +178,17 @@ def build_create_tab(
         except Exception as exc:  # any failure must re-enable the button
             if not isinstance(exc, AppError):
                 logger.error("Create callback failed: %s", type(exc).__qualname__)
+            message = t(lang, error_message_key(exc))
+            rewrite = exc.rewrite if isinstance(exc, SafetyRefusalError) else None
+            if rewrite:
+                message += "\n\n" + t(lang, "safety.rewrite_prompt")
             yield (
                 current,
                 device_id,
                 gr.update(interactive=True),
-                gr.update(value=t(lang, error_message_key(exc)), visible=True),
+                gr.update(value=message, visible=True),
                 gr.skip(),
+                gr.update(value=rewrite, visible=True) if rewrite else gr.update(visible=False),
             )
             return
         current.set_current(
@@ -190,12 +201,28 @@ def build_create_tab(
             gr.update(interactive=True),
             gr.update(value="", visible=False),
             gr.update(value=picture, visible=True),
+            gr.update(visible=False),
         )
 
     create_button.click(
         on_create,
         [text, aspect, device, session],
-        [session, device, create_button, status, result],
+        [session, device, create_button, status, result, rewrite_card],
+        **visibility,
+    )
+
+    def on_use_rewrite(suggestion: str, current: VisitorSession):
+        current.touch()
+        limit = settings.config.safety.max_input_chars
+        shown = (suggestion or "")[:limit]
+        return current, shown, gr.update(visible=False), gr.update(visible=False)
+
+    rewrite_card.click(
+        on_use_rewrite,
+        [rewrite_card, session],
+        [session, text, rewrite_card, status],
+        queue=False,
+        show_progress="hidden",
         **visibility,
     )
 

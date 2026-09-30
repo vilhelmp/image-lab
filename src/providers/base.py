@@ -5,9 +5,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 Aspect = Literal["square", "landscape", "portrait"]
+# Fixed internal set. Adapters map their provider's categories onto it and raise on anything else.
+ModerationCode = Literal[
+    "sexual", "minors", "violence", "hate", "self_harm", "harassment", "illicit", "other"
+]
 
 
 class ImageRequest(BaseModel):
@@ -31,7 +35,13 @@ class ImageResult(BaseModel):
 
 class ModerationResult(BaseModel):
     flagged: bool
-    code: str | None = None
+    code: ModerationCode | None = None
+
+    @model_validator(mode="after")
+    def _flagged_needs_a_code(self) -> ModerationResult:
+        if self.flagged and self.code is None:
+            raise ValueError("a flagged result needs a moderation code")
+        return self
 
 
 class ImageProvider(ABC):

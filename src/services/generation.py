@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Awaitable
 
 from pydantic import BaseModel, Field
 
@@ -13,7 +12,6 @@ from src.config import Settings
 from src.errors import (
     AppError,
     BudgetReachedError,
-    CheckFailedError,
     CooldownError,
     EmptyInputError,
     PausedError,
@@ -23,11 +21,11 @@ from src.errors import (
     TooLongInputError,
     error_code,
 )
-from src.providers.base import Aspect, ImageRequest, ModerationResult
+from src.providers.base import Aspect, ImageRequest
 from src.providers.factory import Providers
 from src.services.limits import Kind, LimitService
 from src.services.prompts import compose_prompt, style_fragment
-from src.services.safety import validate_input
+from src.services.safety import SafetyService, validate_input
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +38,7 @@ class CreateRequest(BaseModel):
     text: str = Field(repr=False)
     style: str | None = None
     aspect: Aspect = "square"
+    lang: str = "sv"
     device_hash: str | None = None
 
 
@@ -58,6 +57,7 @@ class GenerationService:
         self._settings = settings
         self._providers = providers
         self._limits = limits
+        self._safety = SafetyService(providers.moderator, providers.text, settings.config.safety)
 
     async def create(self, req: CreateRequest) -> GenerationResult:
         model_key = self._settings.models.defaults.create_model
@@ -104,7 +104,7 @@ class GenerationService:
         try:
             final_prompt = compose_prompt(text, style_fragment(config.style_fragments, req.style))
 
-            await self._require_clean(self._providers.moderator.moderate_text(final_prompt))
+            await self._safety.check_prompt(final_prompt, req.lang)
 
             async with self._limits.slot():
                 provider_called = True
@@ -124,7 +124,7 @@ class GenerationService:
         # The image exists and is paid for, even if the output check refuses it below.
         self._limits.reconcile(reservation, result.est_cost)
 
-        await self._require_clean(self._providers.moderator.moderate_image(result.image))
+        await self._safety.check_image(result.image)
 
         return GenerationResult(
             image=result.image,
@@ -133,18 +133,6 @@ class GenerationService:
             seconds=result.seconds,
             est_cost=result.est_cost,
         )
-
-    async def _require_clean(self, check: Awaitable[ModerationResult]) -> None:
-        """Raise unless the check ran and passed. A failed check counts as a refusal."""
-        try:
-            verdict = await check
-            if not isinstance(verdict, ModerationResult):
-                raise TypeError("moderator returned no verdict")
-        except Exception as exc:
-            logger.error("Safety check failed: %s.%s", type(exc).__module__, type(exc).__qualname__)
-            raise CheckFailedError from exc
-        if verdict.flagged:
-            raise SafetyRefusalError(code=verdict.code or "flagged")
 
 
 def _kind_of(exc: AppError) -> Kind | None:

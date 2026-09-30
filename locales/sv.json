@@ -35,6 +35,7 @@
   "error.budget": "Dagens bildbudget är slut. Tack för att du testade AI Image Lab!",
   "error.paused": "Bildskapandet är pausat en liten stund.",
   "error.safety": "Den idén passar inte för den här workshopen. Prova gärna en annan!",
+  "safety.rewrite_prompt": "Vill du prova det här istället?",
   "error.generic": "Något gick fel. Försök igen.",
   "error.empty": "Skriv först vad du vill skapa.",
   "error.too_long": "Beskrivningen är för lång. Gör den lite kortare.",

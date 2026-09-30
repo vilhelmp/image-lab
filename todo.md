@@ -69,16 +69,16 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [ ] `image_backend: fal | hf` switch; hide models without `hf_model`; startup secret validation
 - [ ] `src/providers/openai_text.py`: improve, surprise, policy check with structured JSON, one retry, graceful fallback
 - [ ] `src/providers/openai_moderation.py`: text and image moderation
-- [ ] `src/services/safety.py`: final-prompt moderation and policy check in parallel (`asyncio.gather`), fail closed on errors and malformed output
-- [ ] Moderate every LLM output (translation, rewrite, help-me, surprise) before composing or showing it, including `SafetyRefusalError.rewrite`
-- [ ] Adapters map provider moderation categories to a fixed internal code set and raise on empty or unknown results
-- [ ] Keep `FakeModerator` only with fake image providers (development mode on a Space with real secrets is already refused at startup)
-- [ ] Output-image moderation before display
-- [ ] Character policy (`allow | redirect | block`) and safe-rewrite card
+- [x] `src/services/safety.py`: final-prompt moderation and policy check in parallel (`asyncio.gather`), fail closed on errors and malformed output
+- [ ] Moderate every LLM output (translation, rewrite, help-me, surprise) before composing or showing it, including `SafetyRefusalError.rewrite`. Done: `SafetyService.check_generated_text` and the moderated rewrite. Open: wire it into translation, Help me and Surprise me when they exist
+- [ ] Adapters map provider moderation categories to a fixed internal code set and raise on empty or unknown results. Done: the code set and the `ModerationResult` validation in `base.py`. Open: the adapters
+- [ ] Keep `FakeModerator` only with fake image providers (development mode on a Space with real secrets is already refused at startup). `build_providers` only builds fakes in development mode today; re-check when the real providers land
+- [x] Output-image moderation before display
+- [x] Character policy (`allow | redirect | block`) and safe-rewrite card
 - [ ] Retries only on 429, selected 5xx and timeouts, max 2, with jitter
 - [ ] Help me and Surprise me buttons with Undo
-- [ ] `tests/safety_cases.yaml` (about 40 SV and EN cases) and `test_safety.py`
-- [ ] Script to run safety cases against real services and print pass or fail
+- [x] `tests/safety_cases.yaml` (about 40 SV and EN cases) and `test_safety.py`. The CI replay uses table-driven fakes, so it checks the pipeline logic, not any model's judgement
+- [ ] Script to run safety cases against real services and print pass or fail. `scripts/run_safety_cases.py` is written; it needs the real adapters and keys to run
 - [ ] Verify real model IDs, prices and latency; replace `<verify>` placeholders
 - [ ] Logging check: no prompts, image bytes or secrets
 - [ ] Run `@safety-reviewer` on the whole flow before adding real API keys

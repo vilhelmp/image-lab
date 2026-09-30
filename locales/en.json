@@ -35,6 +35,7 @@
   "error.budget": "Today's image budget has been reached. Thanks for trying AI Image Lab!",
   "error.paused": "Image creation is paused for a little while.",
   "error.safety": "That idea isn't suitable for this workshop. Try another one!",
+  "safety.rewrite_prompt": "Want to try this instead?",
   "error.generic": "Something went wrong. Please try again.",
   "error.empty": "Write what you want to create first.",
   "error.too_long": "That description is too long. Please make it a bit shorter.",
