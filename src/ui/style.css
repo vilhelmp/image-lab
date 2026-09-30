@@ -57,9 +57,15 @@ button {
   min-height: 56px;
 }
 
-.ideas-button {
+#helper-row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ideas-button,
+.helper-button {
   min-height: 48px;
-  align-self: flex-start;
+  flex: 1 1 140px;
 }
 
 /* The ideas popup: a fixed overlay, so it needs no modal component. */

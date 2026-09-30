@@ -18,6 +18,7 @@ GALLERY_COLUMNS = 3
 class IdeasPanel:
     button: gr.Button
     overlay: gr.Column
+    galleries: list[gr.Gallery]
 
 
 def build_ideas(
@@ -38,6 +39,7 @@ def build_ideas(
         variant="secondary",
         elem_classes=["ideas-button"],
     )
+    galleries: list[gr.Gallery] = []
     with gr.Column(visible=False, elem_id="ideas-overlay") as overlay:
         with gr.Column(elem_id="ideas-panel"):
             with gr.Row(elem_id="ideas-header"):
@@ -64,6 +66,7 @@ def build_ideas(
                             buttons=[],
                             elem_classes=["ideas-gallery"],
                         )
+                        galleries.append(gallery)
                         gallery.select(_pick(group), [session], [session, text, overlay], **quiet)
 
     def open_panel(current: VisitorSession):
@@ -76,7 +79,7 @@ def build_ideas(
 
     button.click(open_panel, [session], [session, overlay], **quiet)
     close.click(close_panel, [session], [session, overlay], **quiet)
-    return IdeasPanel(button, overlay)
+    return IdeasPanel(button, overlay, galleries)
 
 
 def _items(library: PromptLibrary, group: LibraryGroup, lang: str) -> list[tuple[str, str]]:

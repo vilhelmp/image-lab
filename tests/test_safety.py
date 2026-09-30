@@ -320,6 +320,13 @@ async def test_generated_text_that_is_flagged_means_try_again(make_service):
         await make_service(moderator=FakeModerator(fail=True)).check_generated_text("x")
 
 
+async def test_generated_text_the_policy_refuses_also_means_try_again(make_service):
+    service = make_service(FakeTextProvider())
+    for marker in ("[real person]", "[character]", "[minors]"):
+        with pytest.raises(CheckFailedError):
+            await service.check_generated_text(f"a scene {marker}", "en")
+
+
 def test_moderation_results_use_the_fixed_code_set():
     assert ModerationResult(flagged=True, code="sexual").code == "sexual"
     with pytest.raises(ValidationError):

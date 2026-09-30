@@ -114,7 +114,9 @@ class SafetyService:
         self._config = config
         self._policy_prompt = policy_system_prompt(config.characters)
 
-    async def check_prompt(self, final_prompt: str, lang: str) -> None:
+    async def check_prompt(
+        self, final_prompt: str, lang: str, *, offer_rewrite: bool = True
+    ) -> None:
         """Moderation and the workshop policy run in parallel on the final composed prompt."""
         moderation, policy = await asyncio.gather(
             self._moderate_text(final_prompt),
@@ -129,6 +131,8 @@ class SafetyService:
         refusal = self._refusal(policy) if isinstance(policy, PolicyVerdict) else None
         if refusal:
             category, rewrite = refusal
+            if not offer_rewrite:
+                raise SafetyRefusalError(code=category)
             raise SafetyRefusalError(code=category, rewrite=await self._safe_rewrite(rewrite, lang))
         # Pass only on two explicit, clean verdicts. Anything else is a check that did not run.
         if not (isinstance(moderation, ModerationResult) and isinstance(policy, PolicyVerdict)):
@@ -139,14 +143,18 @@ class SafetyService:
         if verdict.flagged:
             raise SafetyRefusalError(code=verdict.code or "other")
 
-    async def check_generated_text(self, text: str) -> None:
+    async def check_generated_text(self, text: str, lang: str = "sv") -> None:
         """Vet LLM output (translation, rewrite, help-me, surprise) before it is used or shown.
 
-        The visitor did not write it, so a flag means "try again", not a refusal.
+        Moderation and the workshop policy both run, so the visitor is not handed an idea that
+        Create would refuse. The visitor did not write it, so any problem means "try again",
+        not a refusal.
         """
-        verdict = await self._moderate_text(text)
-        if verdict.flagged:
-            raise CheckFailedError
+        try:
+            await self.check_prompt(text, lang, offer_rewrite=False)
+        except SafetyRefusalError as refusal:
+            logger.warning("generated text refused: %s", refusal.code)
+            raise CheckFailedError from refusal
 
     async def _moderate_text(self, text: str) -> ModerationResult:
         return await self._moderate(self._moderator.moderate_text(text), "text check")

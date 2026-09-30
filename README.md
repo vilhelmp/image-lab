@@ -26,3 +26,7 @@ DEVELOPMENT_MODE=true uv run python app.py   # fakes, no API keys needed
 ```
 
 On Windows PowerShell, set `$env:DEVELOPMENT_MODE = "true"` before `uv run python app.py`.
+
+## Privacy
+
+The app stores no prompts or images, and its logs hold only timestamps, model, outcome, latency, cost estimate, a refusal code and a hashed device id. With real keys, each description a visitor types (and each generated image) is sent to external providers: OpenAI for moderation and the text helpers, and Hugging Face Inference Providers (or fal) for image generation. Those providers process the requests under their own terms and retention policies. Tell participants before they start, and check the providers' terms if children take part.

@@ -22,6 +22,9 @@ class VisitorSession:
     style: str | None = None
     current: GeneratedImage | None = None
     history: list[GeneratedImage] = field(default_factory=list)
+    undo_text: str | None = field(
+        default=None, repr=False
+    )  # the text before Help me or Surprise me
 
     def touch(self, now: float | None = None) -> None:
         self.last_interaction = time.monotonic() if now is None else now
@@ -43,5 +46,6 @@ class VisitorSession:
         self.style = None
         self.current = None
         self.history = []
+        self.undo_text = None
         self.dirty = False
         self.last_interaction = time.monotonic() if now is None else now

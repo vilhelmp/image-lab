@@ -51,6 +51,35 @@ def test_a_library_prompt_shows_its_cached_example_with_a_note(client: Client):
     assert status["visible"] is True and "exempelbild" in status["value"]
 
 
+def test_help_me_fills_the_box_and_undo_restores_it(client: Client):
+    device, improved, status = client.predict("a cat", None, api_name="/on_help")
+    assert improved == "A friendly scene with soft evening light"
+    assert status["visible"] is False
+    assert client.predict(api_name="/on_undo") == "a cat"
+
+
+def test_surprise_me_fills_the_box_and_undo_clears_an_empty_box(client: Client):
+    device, surprise, status = client.predict("", None, api_name="/on_surprise")
+    assert surprise == "A whale reading a book on a Swedish island"
+    assert client.predict(api_name="/on_undo") == ""
+
+
+def test_help_me_with_an_empty_box_shows_the_friendly_message(client: Client):
+    _, text, status = client.predict("  ", None, api_name="/on_help")
+    assert status["value"] == "Skriv först vad du vill skapa."
+
+
+def test_typing_after_help_me_drops_the_undo(client: Client):
+    client.predict("a cat", None, api_name="/on_help")
+    client.predict(api_name="/on_typing")
+    assert client.predict(api_name="/on_undo") == ""  # nothing left to restore
+
+
+def test_an_unknown_language_is_rejected_by_the_framework(client: Client):
+    with pytest.raises(Exception, match="not in the list of choices"):
+        client.predict("xx", api_name="/on_language")
+
+
 def test_empty_idea_shows_friendly_message(client: Client):
     _, status, _ = client.predict("   ", None, api_name="/on_create")
     assert status["value"] == "Skriv först vad du vill skapa."

@@ -14,6 +14,7 @@ from src.logging_setup import configure_logging
 from src.providers.factory import Providers, build_providers
 from src.services.access import build_auth
 from src.services.generation import GenerationService
+from src.services.helpers import HelperService
 from src.services.library import PromptLibrary, load_library, load_lock
 from src.services.limits import LimitService
 from src.services.session import VisitorSession
@@ -56,7 +57,9 @@ def build_demo(
     i18n = I18n.load(cfg.app.languages, default_lang)
     limits = limits or LimitService(cfg.limits)
     library = library or load_library(settings).with_images(load_lock())
-    service = GenerationService(settings, providers or build_providers(settings), limits, library)
+    providers = providers or build_providers(settings)
+    service = GenerationService(settings, providers, limits, library)
+    helpers = HelperService(settings, providers, limits, library)
     loc = Localizer(i18n)
     t = loc.t
     api_visibility: ApiVisibility = "undocumented" if cfg.access.expose_api else "private"
@@ -98,10 +101,10 @@ def build_demo(
                 create = build_create_tab(
                     settings=settings,
                     service=service,
+                    helpers=helpers,
                     loc=loc,
                     session=session,
                     device=device,
-                    touch=touch,
                     api_visibility=api_visibility,
                     library=library,
                 )

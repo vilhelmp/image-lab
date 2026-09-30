@@ -34,9 +34,12 @@ The Create tab runs end to end with fakes: text box with rotating placeholder (t
 
 - Ideas popup: `config/prompt_library.yaml` holds 7 themed groups (37 prompts, Swedish and English) including a "like real photos" group. A "Behöver du idéer?" button opens an overlay with one tab per group; tapping a picture fills the text box. If the visitor then creates the text unchanged with no style, the cached example image is returned at once with no moderation call, no provider call and no cost (`GenerationService._library_example`), with a note that it is an example. The images are made offline by `scripts/build_library.py` through the normal safety checks (every language of each prompt and the image), and `config/prompt_library.lock.json` ties each image to its texts; a mismatch hides the prompt. 344 tests.
 
+- Help me and Surprise me with Undo: `src/services/helpers.py` (`HelperService`) and `src/ui/helper_row.py`. Help me rewrites the visitor's idea (the idea gets the usual Create checks in parallel, so a refused idea gets the refusal and an alternative); Surprise me invents an idea from a random library theme and falls back to a curated library prompt if the LLM path fails. Every reply passes moderation and the policy check before it is shown, and any failure leaves the text box unchanged. Limits: 2 s per device, 60 a minute overall, 8 at once (extra calls say "try again"), and the pause switch. Undo restores the previous text until the visitor types, picks an idea or uses a suggested alternative.
+- Real-keys check: `scripts/check_real_flow.py` drives startup validation, Create, a cached example, three refusals, Help me and Surprise me with the real keys and scans the logs for leaks (passed 2026-09-30, 0 leaks). The whole flow was reviewed with `@safety-reviewer`; the operational gate items are in [todo.md](todo.md). 381 tests.
+
 ## Not done
 
-Everything from Phase 3 on: no real providers or moderation (fakes only), no Help me, Surprise me, edit chips, Compare tab, style thumbnails, or "What did the model receive?". Login has not been tried on the Space or on an iPad yet. See [todo.md](todo.md).
+Edit chips, Compare tab, style thumbnails, "What did the model receive?", `fal.py`, and the Space with real secrets. Login has not been tried on the Space or on an iPad with the real passwords yet. See [todo.md](todo.md).
 
 ## Decisions and deviations from the spec
 

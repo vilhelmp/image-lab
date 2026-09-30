@@ -13,11 +13,12 @@ import gradio as gr
 from src.config import Settings
 from src.errors import AppError, SafetyRefusalError, error_message_key
 from src.services.generation import CreateRequest, GenerationService
+from src.services.helpers import HelperService
 from src.services.library import PromptLibrary
 from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
 from src.ui.components import ApiVisibility, Block, Localizer, Updates, to_pil
-from src.ui.ideas import IdeasPanel, build_ideas
+from src.ui.helper_row import HelperRow, build_helper_row, wire_helpers
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class CreateTab:
     status: gr.Markdown
     result: gr.Image
     rewrite_card: gr.Button
-    ideas: IdeasPanel | None = None
+    helper_row: HelperRow
 
     @property
     def managed(self) -> list[Block]:
@@ -46,7 +47,7 @@ class CreateTab:
             self.status,
             self.result,
             self.rewrite_card,
-            *([self.ideas.overlay] if self.ideas else []),
+            *self.helper_row.managed,
         ]
 
     def reset_props(self) -> Updates:
@@ -56,7 +57,7 @@ class CreateTab:
             self.status: {"value": "", "visible": False},
             self.result: {"value": None, "visible": False},
             self.rewrite_card: {"value": "", "visible": False},
-            **({self.ideas.overlay: {"visible": False}} if self.ideas else {}),
+            **self.helper_row.reset_props(),
             **{button: {"variant": "secondary"} for button in self.styles.values()},
         }
 
@@ -65,14 +66,15 @@ def build_create_tab(
     *,
     settings: Settings,
     service: GenerationService,
+    helpers: HelperService,
     loc: Localizer,
     session: gr.State,
     device: gr.BrowserState,
-    touch: Handler,
     api_visibility: ApiVisibility,
     library: PromptLibrary | None = None,
 ) -> CreateTab:
     ui = settings.config.ui
+    features = settings.config.features
     t = loc.t
     visibility = {"api_visibility": api_visibility}
 
@@ -86,12 +88,14 @@ def build_create_tab(
         max_length=settings.config.safety.max_input_chars,
         elem_id="idea-box",
     )
-    ideas = (
-        build_ideas(
-            library=library, loc=loc, text=text, session=session, api_visibility=api_visibility
-        )
-        if library and library.groups
-        else None
+    helper_row = build_helper_row(
+        loc=loc,
+        text=text,
+        session=session,
+        api_visibility=api_visibility,
+        library=library,
+        help_me=features.help_me,
+        surprise_me=features.surprise_me,
     )
 
     with gr.Row(elem_id="style-row"):
@@ -122,7 +126,21 @@ def build_create_tab(
         buttons=["download"],
         elem_id="result-image",
     )
-    tab = CreateTab(text, styles, create_button, status, result, rewrite_card, ideas)
+    tab = CreateTab(text, styles, create_button, status, result, rewrite_card, helper_row)
+    wire_helpers(
+        helper_row,
+        helpers=helpers,
+        loc=loc,
+        session=session,
+        device=device,
+        text=text,
+        status=status,
+        rewrite_card=rewrite_card,
+        api_visibility=api_visibility,
+        max_chars=settings.config.safety.max_input_chars,
+        help_me=features.help_me,
+        surprise_me=features.surprise_me,
+    )
 
     def style_handler(key: str) -> Handler:
         def on_style(current: VisitorSession) -> list[Any]:
@@ -147,9 +165,6 @@ def build_create_tab(
             show_progress="hidden",
             **visibility,
         )
-
-    quiet = {"queue": False, "show_progress": "hidden", "trigger_mode": "always_last", **visibility}
-    text.input(touch, [session], [session], **quiet)
 
     async def on_create(idea: str, device_value: Any, current: VisitorSession):
         current.touch()

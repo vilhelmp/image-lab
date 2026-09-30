@@ -67,22 +67,28 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [ ] `src/providers/fal.py` image adapter (raw REST at `https://fal.run/<id>`, `Authorization: Key`, `post_json(idempotent=False)` plus an image download)
 - [x] `src/providers/hf_inference.py` image adapter (`AsyncInferenceClient`, `hf_model` and `hf_provider` from config, PNG bytes, billing-safe retries, 402 maps to `BudgetReachedError`). First live image 2026-10-01: FLUX.1-schnell via fal-ai, 5.0 s. `scripts/try_image.py` generates one image and prints latency and estimated cost
 - [x] `image_backend: fal | hf` switch in config and the factory (`build_image`); models without `hf_model` are hidden; startup secret validation. Default is now `hf`; the fal branch of the factory is not built yet
-- [ ] `src/providers/openai_text.py`: improve, surprise, policy check with structured JSON, one retry, graceful fallback. Done: the adapter (strict JSON schema per task, `gpt-6-luna`) and the policy check with one retry on malformed replies. Open: the Help me and Surprise me service wiring
+- [x] `src/providers/openai_text.py`: improve, surprise, policy check with structured JSON, one retry, graceful fallback (Help me and Surprise me are wired through `HelperService`)
 - [x] `src/providers/openai_moderation.py`: text and image moderation
 - [x] `src/services/safety.py`: final-prompt moderation and policy check in parallel (`asyncio.gather`), fail closed on errors and malformed output
-- [ ] Moderate every LLM output (translation, rewrite, help-me, surprise) before composing or showing it, including `SafetyRefusalError.rewrite`. Done: `SafetyService.check_generated_text` and the moderated rewrite. Open: wire it into translation, Help me and Surprise me when they exist
+- [x] Moderate every LLM output (Help me, Surprise me, rewrite) before showing it, including `SafetyRefusalError.rewrite`. `check_generated_text` now runs moderation and the policy check. Translation does not exist yet; wire it in if it is added
 - [x] Adapters map provider moderation categories to a fixed internal code set and raise on empty or unknown results
 - [ ] Keep `FakeModerator` only with fake image providers (development mode on a Space with real secrets is already refused at startup). `build_providers` only builds fakes in development mode today; re-check when the real providers land
 - [x] Output-image moderation before display
 - [x] Character policy (`allow | redirect | block`) and safe-rewrite card
 - [x] Retries only on 429, selected 5xx and timeouts, max 2, with jitter (`src/providers/http.py`, hard total deadline). Before reusing it for image POSTs: do not retry a request that may already have been billed
-- [ ] Help me and Surprise me buttons with Undo
+- [x] Help me and Surprise me buttons with Undo (`src/services/helpers.py`, `src/ui/helper_row.py`). Every reply passes moderation and the policy check; a refused idea gets the usual refusal; a failed Surprise falls back to a library prompt; per-device 2 s interval and the pause switch apply
 - [x] `tests/safety_cases.yaml` (about 40 SV and EN cases) and `test_safety.py`. The CI replay uses table-driven fakes, so it checks the pipeline logic, not any model's judgement
 - [x] Script to run safety cases against real services and print pass or fail. First real run 2026-09-30 with OpenAI moderation and `gpt-6-luna`: 40 of 41 passed, 0 failed, 1 known issue (see Notes)
 - [ ] Verify real model IDs, prices and latency; replace `<verify>` placeholders. Done: text, moderation and image model ids (from the HF provider mapping); schnell latency 5.0 s and 9.5 s (target p50 6 s, so measure more runs) Open: latency of `detailed` and `artistic`, actual prices on the HF billing page (the prices in `models.yaml` are estimates), the edit model (Phase 4)
 - [ ] Logging check: no prompts, image bytes or secrets. Done: adapter log lines carry only model key, status code and exception class; `src/logging_setup.py` keeps httpx, httpcore and huggingface_hub at WARNING. Open: a full pass over the running app's logs
 - [ ] Image adapter follow-ups from the safety review: the SDK's blocking image download in its worker thread has no explicit timeout (a hung thread would linger); `hf_provider: null` routes to "auto", so require `hf_provider` in config or accept the cost drift; the adapter's 45 s budget starts after moderation while the outer Create timeout is also 45 s
-- [ ] Run `@safety-reviewer` on the whole flow before adding real API keys
+- [x] Real-keys check before the Space: `scripts/check_real_flow.py` passed 2026-09-30 (startup validation, a real image in 8 to 9 s, a cached example, three refusals, Help me, Surprise me, 40 log lines and 0 leaks). Helpers take 2.6 to 5.6 s (target 3 s); the first refusal of a named politician took 11 to 14 s twice, so watch policy-check latency against its 15 s timeout
+- [x] `@safety-reviewer` on the whole flow: no CRITICAL or HIGH code findings; the items below are the operational gate
+- [ ] Before the Space gets keys: set `WORKSHOP_PASSWORD` and `ADMIN_PASSWORD` in `../.env` first (20+ characters, different; the check found them too short), then on the Space add all secrets and delete the `DEVELOPMENT_MODE` and `EXPOSE_API` variables in the same change
+- [ ] Before the Space gets keys: confirm HF billing has a spending limit or prepaid credit only, prepay OpenAI with auto-recharge off, keep `limits.max_cost_usd` at or below what is prepaid, use fine-grained tokens (HF: inference calls only)
+- [ ] Confirm live that `enable_safety_checker` reaches fal through the HF router; run one flagged image through `check_image` live
+- [ ] Optional hardening: treat OpenAI `insufficient_quota` like the HF 402 (pause); `queue(max_size=...)`; `analytics_enabled=False`; a test that raw API calls are refused when `expose_api` is false
+- [ ] Run `@safety-reviewer` on the whole flow before adding real API keys (done 2026-09-30; repeat before the workshop freeze)
 
 ## Phase 4: Edit chips
 
