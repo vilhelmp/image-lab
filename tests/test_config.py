@@ -122,14 +122,18 @@ def test_hf_backend_requires_only_hf_token(make_settings):
     assert "FAL_KEY" not in settings.required_secrets()
 
 
+def _fal(app):
+    app["image_backend"] = "fal"
+
+
 def test_fal_backend_requires_fal_key(make_settings):
-    settings = make_settings()
+    settings = make_settings(app=_fal)
     assert "FAL_KEY" in settings.required_secrets()
     assert "HF_TOKEN" not in settings.required_secrets()
 
 
 def test_missing_secrets_stop_startup_without_leaking_values(make_settings):
-    settings = make_settings()
+    settings = make_settings(app=_fal)
     problems = settings.startup_problems({"FAL_KEY": "super-secret-value"})
     assert any("OPENAI_API_KEY" in p for p in problems)
     assert not any("FAL_KEY" in p for p in problems)
@@ -137,9 +141,33 @@ def test_missing_secrets_stop_startup_without_leaking_values(make_settings):
 
 
 def test_placeholder_model_ids_stop_startup(make_settings):
-    env = dict.fromkeys(make_settings().required_secrets(), "x")
-    problems = make_settings().startup_problems(env)
-    assert any("placeholder" in p for p in problems)
+    def placeholder(models):
+        models["image_models"]["fast"]["hf_model"] = "<verify: HF model>"
+
+    settings = make_settings(models=placeholder)
+    env = dict.fromkeys(settings.required_secrets(), "x")
+    assert any("placeholder" in p for p in settings.startup_problems(env))
+    # the edit model is still a placeholder, which matters as soon as the fal backend is used
+    fal = make_settings(app=_fal)
+    assert any(
+        "edit model" in p for p in fal.startup_problems(dict.fromkeys(fal.required_secrets(), "x"))
+    )
+
+
+def test_the_default_backend_starts_with_real_model_ids(make_settings):
+    settings = make_settings()
+    env = dict.fromkeys(settings.required_secrets(), "x" * 24)
+    assert not any("placeholder" in p for p in settings.startup_problems(env))
+
+
+def test_an_hf_token_without_the_hf_prefix_stops_startup(make_settings):
+    settings = make_settings()
+    env = dict.fromkeys(settings.required_secrets(), "x" * 24)
+    problems = settings.startup_problems(env)
+    assert any("HF_TOKEN" in p for p in problems)
+    assert "x" * 24 not in " ".join(problems)
+    env["HF_TOKEN"] = "hf_" + "x" * 20
+    assert not any("HF_TOKEN" in p for p in settings.startup_problems(env))
 
 
 def test_secrets_are_not_part_of_serialised_settings(make_settings):

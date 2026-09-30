@@ -1,4 +1,4 @@
-image_backend: fal # fal | hf. hf remaps every model to its hf_model
+image_backend: hf # fal | hf. hf remaps every model to its hf_model (needs only HF_TOKEN)
 
 app:
   name: "AI Image Lab"

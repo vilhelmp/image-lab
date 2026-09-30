@@ -23,6 +23,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "gradio", extra = ["mcp", "oauth"] },
     { name = "httpx" },
+    { name = "huggingface-hub" },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -39,6 +40,7 @@ dev = [
 requires-dist = [
     { name = "gradio", extras = ["mcp", "oauth"], specifier = "==6.28.0" },
     { name = "httpx" },
+    { name = "huggingface-hub", specifier = ">=1.0" },
     { name = "pillow" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pyyaml" },

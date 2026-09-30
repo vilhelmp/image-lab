@@ -10,6 +10,7 @@ import gradio as gr
 
 from src.config import Settings, env_file_path, load_env_file, load_settings
 from src.i18n import I18n
+from src.logging_setup import configure_logging
 from src.providers.factory import Providers, build_providers
 from src.services.access import build_auth
 from src.services.generation import GenerationService
@@ -178,8 +179,7 @@ def build_demo(
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    configure_logging()
 
     loaded = load_env_file()
     if loaded:

@@ -64,9 +64,9 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 
 ## Phase 3: Real providers and safety
 
-- [ ] `src/providers/fal.py` image adapter
-- [ ] `src/providers/hf_inference.py` image adapter (parity with fal)
-- [ ] `image_backend: fal | hf` switch; hide models without `hf_model`; startup secret validation
+- [ ] `src/providers/fal.py` image adapter (raw REST at `https://fal.run/<id>`, `Authorization: Key`, `post_json(idempotent=False)` plus an image download)
+- [x] `src/providers/hf_inference.py` image adapter (`AsyncInferenceClient`, `hf_model` and `hf_provider` from config, PNG bytes, billing-safe retries, 402 maps to `BudgetReachedError`). First live image 2026-10-01: FLUX.1-schnell via fal-ai, 5.0 s. `scripts/try_image.py` generates one image and prints latency and estimated cost
+- [x] `image_backend: fal | hf` switch in config and the factory (`build_image`); models without `hf_model` are hidden; startup secret validation. Default is now `hf`; the fal branch of the factory is not built yet
 - [ ] `src/providers/openai_text.py`: improve, surprise, policy check with structured JSON, one retry, graceful fallback. Done: the adapter (strict JSON schema per task, `gpt-6-luna`) and the policy check with one retry on malformed replies. Open: the Help me and Surprise me service wiring
 - [x] `src/providers/openai_moderation.py`: text and image moderation
 - [x] `src/services/safety.py`: final-prompt moderation and policy check in parallel (`asyncio.gather`), fail closed on errors and malformed output
@@ -79,8 +79,9 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [ ] Help me and Surprise me buttons with Undo
 - [x] `tests/safety_cases.yaml` (about 40 SV and EN cases) and `test_safety.py`. The CI replay uses table-driven fakes, so it checks the pipeline logic, not any model's judgement
 - [x] Script to run safety cases against real services and print pass or fail. First real run 2026-09-30 with OpenAI moderation and `gpt-6-luna`: 40 of 41 passed, 0 failed, 1 known issue (see Notes)
-- [ ] Verify real model IDs, prices and latency; replace `<verify>` placeholders
-- [ ] Logging check: no prompts, image bytes or secrets
+- [ ] Verify real model IDs, prices and latency; replace `<verify>` placeholders. Done: text, moderation and image model ids (from the HF provider mapping); schnell latency 5.0 s and 9.5 s (target p50 6 s, so measure more runs) Open: latency of `detailed` and `artistic`, actual prices on the HF billing page (the prices in `models.yaml` are estimates), the edit model (Phase 4)
+- [ ] Logging check: no prompts, image bytes or secrets. Done: adapter log lines carry only model key, status code and exception class; `src/logging_setup.py` keeps httpx, httpcore and huggingface_hub at WARNING. Open: a full pass over the running app's logs
+- [ ] Image adapter follow-ups from the safety review: the SDK's blocking image download in its worker thread has no explicit timeout (a hung thread would linger); `hf_provider: null` routes to "auto", so require `hf_provider` in config or accept the cost drift; the adapter's 45 s budget starts after moderation while the outer Create timeout is also 45 s
 - [ ] Run `@safety-reviewer` on the whole flow before adding real API keys
 
 ## Phase 4: Edit chips

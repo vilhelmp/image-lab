@@ -111,15 +111,17 @@ class GenerationService:
                 result = await self._providers.image.generate(
                     ImageRequest(prompt=final_prompt, model_key=model_key, aspect=req.aspect)
                 )
-        except asyncio.CancelledError:
-            # A call cut short by the timeout or a closed tab may still be billed: keep the estimate
-            if provider_called:
+        except BaseException as exc:
+            # Once the provider was called, a failure may still have been billed (a timeout, a
+            # dropped connection, a 5xx): keep the estimate unless the error is known unbilled.
+            if provider_called and not getattr(exc, "unbilled", False):
                 self._limits.reconcile(reservation, est_cost)
             else:
                 self._limits.release(reservation)
-            raise
-        except BaseException:
-            self._limits.release(reservation)
+            if provider_called and isinstance(exc, BudgetReachedError):
+                # The prepaid credit is used up: stop paid calls until an admin resumes.
+                logger.error("Provider credit exhausted: pausing generation")
+                self._limits.set_paused(True)
             raise
         # The image exists and is paid for, even if the output check refuses it below.
         self._limits.reconcile(reservation, result.est_cost)

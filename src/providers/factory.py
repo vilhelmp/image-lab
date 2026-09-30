@@ -14,6 +14,7 @@ from src.providers.fake import (
     FakeModerator,
     FakeTextProvider,
 )
+from src.providers.hf_inference import HFImageProvider
 from src.providers.openai_moderation import OpenAIModerator
 from src.providers.openai_text import OpenAITextProvider
 
@@ -39,6 +40,13 @@ def build_text(settings: Settings, env: Mapping[str, str] | None = None) -> Text
     )
 
 
+def build_image(settings: Settings, env: Mapping[str, str] | None = None) -> ImageProvider:
+    env = os.environ if env is None else env
+    if settings.config.image_backend == "hf":
+        return HFImageProvider(env["HF_TOKEN"], settings)
+    raise NotImplementedError("The fal backend is not built yet. Use image_backend: hf.")
+
+
 def build_providers(settings: Settings, env: Mapping[str, str] | None = None) -> Providers:
     if settings.development_mode:
         delay = settings.config.app.fake_delay_seconds
@@ -48,4 +56,9 @@ def build_providers(settings: Settings, env: Mapping[str, str] | None = None) ->
             text=FakeTextProvider(),
             moderator=FakeModerator(),
         )
-    raise NotImplementedError("The real image providers arrive next. Set DEVELOPMENT_MODE=true.")
+    return Providers(
+        image=build_image(settings, env),
+        edit=None,  # edit chips arrive in phase 4
+        text=build_text(settings, env),
+        moderator=build_moderator(settings, env),
+    )

@@ -6,6 +6,8 @@ from __future__ import annotations
 class AppError(Exception):
     code = "unexpected"
     message_key = "error.generic"
+    # True only when a failure after the provider call is known not to have been billed.
+    unbilled = False
 
 
 class EmptyInputError(AppError):
@@ -39,6 +41,7 @@ class MalformedReplyError(ProviderError):
 class RateLimitedError(AppError):
     code = "rate_limited"
     message_key = "error.busy"
+    unbilled = True
 
 
 class CooldownError(AppError):
@@ -48,6 +51,7 @@ class CooldownError(AppError):
 
 class BudgetReachedError(AppError):
     code = "budget_reached"
+    unbilled = True
     message_key = "error.budget"
 
 

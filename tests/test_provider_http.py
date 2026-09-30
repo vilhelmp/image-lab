@@ -187,3 +187,27 @@ async def test_logs_and_errors_never_hold_bodies_or_keys(caplog):
         await _call(Recorder(httpx.Response(400, text="SECRET-BODY-CONTENT")))
     assert "SECRET-BODY-CONTENT" not in caplog.text + str(info.value)
     assert "sk-test-key" not in caplog.text + str(info.value)
+
+
+async def test_a_paid_call_is_retried_only_when_the_work_did_not_start():
+    for status in (429, 503):
+        recorder = Recorder(httpx.Response(status), _ok())
+        assert await _call(recorder, idempotent=False) == {"ok": True}
+        assert len(recorder.requests) == 2
+
+
+@pytest.mark.parametrize(
+    ("step", "error"),
+    [
+        (httpx.Response(500), ProviderError),
+        (httpx.Response(502), ProviderError),
+        (httpx.Response(504), ProviderError),
+        (httpx.ReadTimeout("slow"), ProviderTimeoutError),
+        (httpx.ReadError("dropped"), ProviderError),
+    ],
+)
+async def test_a_paid_call_is_never_sent_twice_after_it_may_have_started(step, error):
+    recorder = Recorder(step, _ok())
+    with pytest.raises(error):
+        await _call(recorder, idempotent=False)
+    assert len(recorder.requests) == 1

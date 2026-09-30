@@ -109,6 +109,7 @@ class ImageModel(_Strict):
     provider: Literal["fal", "hf"]
     api_model: str
     hf_model: str | None = None
+    hf_provider: str | None = None  # which provider Hugging Face routes to; null lets HF choose
     est_cost_usd: float = Field(ge=0)
     translate_to_english: bool = False
     enabled: bool = True
@@ -230,6 +231,10 @@ class Settings(_Strict):
         problems = [
             f"Missing secret: {name}" for name in self.required_secrets() if not env.get(name)
         ]
+        token = env.get("HF_TOKEN")
+        if self.config.image_backend == "hf" and token and not token.startswith("hf_"):
+            # Any other key would be sent straight to the routed provider instead of the HF router
+            problems.append("HF_TOKEN must be a Hugging Face token (it starts with hf_)")
         if self.config.access.enabled:
             problems += password_problems(env)
         else:

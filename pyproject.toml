@@ -8,6 +8,7 @@ requires-python = ">=3.11"
 dependencies = [
     "gradio[mcp,oauth]==6.28.0", # must equal sdk_version; HF Spaces installs these extras
     "httpx",
+    "huggingface-hub>=1.0",
     "pillow",
     "pydantic>=2",
     "pyyaml",

@@ -9,6 +9,7 @@ from src.errors import (
     CooldownError,
     EmptyInputError,
     PausedError,
+    ProviderError,
     ProviderTimeoutError,
     RateLimitedError,
     SafetyRefusalError,
@@ -229,19 +230,59 @@ async def test_twenty_concurrent_creates_stay_under_the_ceiling(
     assert limits.snapshot().images_used == 5
 
 
-async def test_failed_create_releases_its_reservation(dev_settings, fake_providers, make_limits):
+async def test_failure_after_the_provider_call_keeps_the_estimate(
+    dev_settings, fake_providers, make_limits
+):
+    """A timeout, a drop or a 5xx may already be billed, so it is counted (spec section 10)."""
     limits = make_limits()
     service = _service(
         dev_settings,
         limits,
-        image=FakeImageProvider(error=ValueError("boom")),
+        image=FakeImageProvider(error=ProviderError()),
         fake_providers=fake_providers,
     )
     with pytest.raises(AppError):
         await service.create(CreateRequest(text="a cat", device_hash="a"))
     snap = limits.snapshot()
-    assert (snap.images_used, snap.spend_usd) == (0, 0)
+    assert snap.images_used == 1 and snap.spend_usd > 0
     assert snap.recent["error"] == 1
+
+
+async def test_a_call_the_provider_did_not_start_is_released(
+    dev_settings, fake_providers, make_limits
+):
+    limits = make_limits()
+    service = _service(
+        dev_settings,
+        limits,
+        image=FakeImageProvider(error=RateLimitedError()),
+        fake_providers=fake_providers,
+    )
+    with pytest.raises(RateLimitedError):
+        await service.create(CreateRequest(text="a cat", device_hash="a"))
+    snap = limits.snapshot()
+    assert (snap.images_used, snap.spend_usd) == (0, 0)
+    assert not snap.paused
+
+
+async def test_exhausted_provider_credit_pauses_generation(
+    dev_settings, fake_providers, make_limits
+):
+    limits = make_limits()
+    service = _service(
+        dev_settings,
+        limits,
+        image=FakeImageProvider(error=BudgetReachedError()),
+        fake_providers=fake_providers,
+    )
+    with pytest.raises(BudgetReachedError):
+        await service.create(CreateRequest(text="a cat", device_hash="a"))
+    snap = limits.snapshot()
+    assert (snap.images_used, snap.spend_usd) == (0, 0)
+    assert snap.paused
+    with pytest.raises(PausedError):
+        await service.create(CreateRequest(text="a cat", device_hash="b"))
+    limits.set_paused(False)  # an admin resumes after topping up
 
 
 async def test_refusal_before_generation_releases_and_is_counted(

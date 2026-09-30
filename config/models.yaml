@@ -1,11 +1,14 @@
-# Model IDs and prices are placeholders. Replace every "<verify...>" before real use (spec section 5.3).
+# Image model IDs verified against the Hugging Face inference provider mappings on 2026-09-30.
+# Prices are conservative estimates (providers bill per megapixel); check the billing page after
+# the first real runs. The edit model is still a placeholder until Phase 4.
 image_models:
   fast:
     label: { sv: "Snabb", en: "Fast" }
     description: { sv: "Blixtsnabb och bra till det mesta.", en: "Very fast and good for most ideas." }
     provider: fal
-    api_model: "<verify: fast text-to-image model>"
-    hf_model: "<verify: HF Hub ID of the same or an equivalent model>"
+    api_model: "fal-ai/flux/schnell"
+    hf_model: "black-forest-labs/FLUX.1-schnell"
+    hf_provider: fal-ai
     est_cost_usd: 0.005
     translate_to_english: false
     enabled: true
@@ -14,8 +17,9 @@ image_models:
     label: { sv: "Hög kvalitet", en: "High quality" }
     description: { sv: "Långsammare men mer detaljerad.", en: "Slower but more detailed." }
     provider: fal
-    api_model: "<verify: high-quality model>"
-    hf_model: "<verify>"
+    api_model: "fal-ai/flux/dev"
+    hf_model: "black-forest-labs/FLUX.1-dev"
+    hf_provider: fal-ai
     est_cost_usd: 0.04
     enabled: true
 
@@ -23,8 +27,9 @@ image_models:
     label: { sv: "Bra på text i bilder", en: "Good at text in images" }
     description: { sv: "Klarar skyltar och bokstäver bättre.", en: "Handles signs and lettering better." }
     provider: fal
-    api_model: "<verify>"
-    hf_model: "<verify>"
+    api_model: "fal-ai/qwen-image"
+    hf_model: "Qwen/Qwen-Image"
+    hf_provider: fal-ai
     est_cost_usd: 0.03
     enabled: true
 
