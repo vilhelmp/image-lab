@@ -127,10 +127,12 @@ class SafetyService:
             if isinstance(outcome, BaseException) and not isinstance(outcome, Exception):
                 raise outcome
         if isinstance(moderation, ModerationResult) and moderation.flagged:
+            logger.warning("refusal stage=text_moderation code=%s", moderation.code)
             raise SafetyRefusalError(code=moderation.code or "other")
         refusal = self._refusal(policy) if isinstance(policy, PolicyVerdict) else None
         if refusal:
             category, rewrite = refusal
+            logger.warning("refusal stage=policy category=%s", category)
             if not offer_rewrite:
                 raise SafetyRefusalError(code=category)
             raise SafetyRefusalError(code=category, rewrite=await self._safe_rewrite(rewrite, lang))
@@ -141,6 +143,7 @@ class SafetyService:
     async def check_image(self, image: bytes) -> None:
         verdict = await self._moderate(self._moderator.moderate_image(image), "image check")
         if verdict.flagged:
+            logger.warning("refusal stage=image_moderation code=%s", verdict.code)
             raise SafetyRefusalError(code=verdict.code or "other")
 
     async def check_generated_text(self, text: str, lang: str = "sv") -> None:
