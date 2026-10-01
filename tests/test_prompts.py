@@ -1,8 +1,8 @@
 from src.services.prompts import compose_prompt, style_fragment
 
 
-def test_compose_appends_style_and_translation():
-    assert compose_prompt("en katt", "oil painting", "a cat") == "en katt, oil painting, a cat"
+def test_compose_appends_the_style():
+    assert compose_prompt("a cat", "oil painting") == "a cat, oil painting"
 
 
 def test_compose_without_extras_returns_visible_text():
@@ -14,7 +14,7 @@ def test_compose_is_deterministic():
 
 
 def test_compose_skips_empty_parts_and_trailing_punctuation():
-    assert compose_prompt("a cat.", None, "") == "a cat"
+    assert compose_prompt("a cat.", None) == "a cat"
     assert compose_prompt("a cat,", "  retro  ") == "a cat, retro"
 
 

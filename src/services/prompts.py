@@ -9,9 +9,8 @@ def style_fragment(fragments: Mapping[str, str], style: str | None) -> str | Non
     return fragments.get(style) if style else None
 
 
-def compose_prompt(
-    user_text: str, style_fragment: str | None = None, translation: str | None = None
-) -> str:
-    """Join the visitor's text, style and optional translation. The visible text is untouched."""
-    parts = (user_text, style_fragment or "", translation or "")
+def compose_prompt(user_text: str, style_fragment: str | None = None) -> str:
+    """Join the visitor's text (or its English translation) and the style. The visible text is
+    never changed."""
+    parts = (user_text, style_fragment or "")
     return ", ".join(cleaned for part in parts if (cleaned := part.strip().rstrip(".,;")))

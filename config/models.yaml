@@ -10,7 +10,7 @@ image_models:
     hf_model: "black-forest-labs/FLUX.1-schnell"
     hf_provider: fal-ai
     est_cost_usd: 0.003 # measured 2026-09-30: $0.13 for 44 requests on the HF billing page
-    translate_to_english: false
+    translate_to_english: true
     enabled: true
 
   quality:
@@ -21,6 +21,7 @@ image_models:
     hf_model: "black-forest-labs/FLUX.1-dev"
     hf_provider: fal-ai
     est_cost_usd: 0.04
+    translate_to_english: true
     enabled: true
 
   text_expert:
@@ -31,6 +32,7 @@ image_models:
     hf_model: "Qwen/Qwen-Image"
     hf_provider: fal-ai
     est_cost_usd: 0.03
+    translate_to_english: true
     enabled: true
 
 edit_models:

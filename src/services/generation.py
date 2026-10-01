@@ -35,6 +35,7 @@ from src.services.limits import Kind, LimitService
 from src.services.prompts import compose_prompt, style_fragment
 from src.services.safety import SafetyService, validate_input
 from src.services.spend import paid_call
+from src.services.translate import Translator
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,7 @@ class GenerationService:
         self._library = library
         self._helpers = helpers
         self._safety = SafetyService(providers.moderator, providers.text, settings.config.safety)
+        self._translator = Translator(providers.text, settings.config.safety.max_input_chars)
 
     def can_edit(self) -> bool:
         return self._providers.edit is not None and self._settings.active_edit_model() is not None
@@ -188,14 +190,19 @@ class GenerationService:
     async def _create(self, req: CreateRequest, model_key: str) -> GenerationResult:
         config = self._settings.config
         text = validate_input(req.text, config.safety.max_input_chars)
-        final_prompt = compose_prompt(text, style_fragment(config.style_fragments, req.style))
+        model = self._settings.models.image_models[model_key]
+        fragment = style_fragment(config.style_fragments, req.style)
+        final_prompt = compose_prompt(text, fragment)
 
         async def prepare() -> None:
+            nonlocal final_prompt
+            if model.translate_to_english:
+                final_prompt = compose_prompt(await self._translator.to_english(text), fragment)
             await self._safety.check_prompt(final_prompt, req.lang)
 
         result = await paid_call(
             self._limits,
-            est_cost=self._settings.models.image_models[model_key].est_cost_usd,
+            est_cost=model.est_cost_usd,
             device=req.device_hash,
             prepare=prepare,
             call=lambda: self._providers.image.generate(

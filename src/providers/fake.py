@@ -118,6 +118,8 @@ class FakeTextProvider(TextProvider):
         self.calls.append(task)
         if task == "policy_check" and task not in self.responses:
             return self._policy(user)
+        if task == "translate" and task not in self.responses:
+            return {"text": json.loads(user).get("text", "")}  # already "English"
         return dict(self.responses[task])
 
     @staticmethod
