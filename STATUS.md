@@ -4,7 +4,7 @@ What exists right now. Plan: [ai_image_lab_project_spec_v2.md](ai_image_lab_proj
 
 ## Current phase
 
-Phase 1 (skeleton) and Phase 2 (access and limits) are done in code and tests with fakes. Phase 0 is done, including a green CI run on GitHub (`vilhelmp/image-lab`). Phase 1b is nearly done: the Space `magnusp/image-lab` runs on free ZeroGPU (`zero-a10g`), and a 10-minute load test with 10 paced visitors ran clean (before Phase 2 existed). Still open: a real wake-from-sleep measurement, the iPad checks (Phase 1b and the Phase 2 login check; no device yet) and setting the two password secrets on the Space to try login there. Next: Phase 3, real providers and safety. The safety core is built and tested with fakes; the real adapters, Help me and Surprise me are not. No real API key goes in before the Phase 3 safety review.
+Phases 0 to 4 are built, and the app runs with real keys on the Space `magnusp/image-lab` (free ZeroGPU, direct URL `magnusp-image-lab.hf.space`; the app itself never uses a GPU). Done: Create, styles, the ideas popup with cached examples, Help me, Surprise me, Undo, one-tap edit chips, access control, budget and rate limits, an admin Status tab, and the safety flow (prompt and image moderation, policy check, alternatives). Measured: a paused Space takes about 1 min 5 s to reach the login after a restart, so open it about 15 minutes before a workshop and make one generation. Still open: the iPad checks (no device yet), the Compare tab, "Another version" and the recent-images strip, the rewrite fallback for chips, polish (style thumbnails, the "how does it work" panel) and the README for forkers. Next: see [todo.md](todo.md).
 
 ## Run it
 

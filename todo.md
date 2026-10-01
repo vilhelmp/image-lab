@@ -42,7 +42,7 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [x] Create the Gradio SDK Space and push the skeleton with `DEVELOPMENT_MODE=true` as a Space variable (no secrets set; startup allows this). Space is `magnusp/image-lab`; first build failed on a pydantic pin conflict, fixed by pinning `gradio[mcp,oauth]`; the Space now runs on `zero-a10g`
 - [x] Check the Space starts on ZeroGPU with no `@spaces.GPU` function. It failed with "No @spaces.GPU function detected", so `app.py` now has a never-called no-op `@spaces.GPU` function. If startup fails with a missing-GPU-function error, add a never-called no-op `@spaces.GPU` function (needs the `spaces` package) and note it in STATUS
 - [x] Pinned Gradio and Python versions build and run on ZeroGPU
-- [ ] Measure wake-from-sleep time and note the sleep behaviour for the README
+- [x] Measure wake-from-sleep time and note the sleep behaviour for the README. 2026-10-01: a paused Space, restarted by hand, took about 1 min 5 s to reach the login page. Plan: open the Space about 15 minutes before the workshop and make one real generation to warm it; the README still needs the sleep note
 - [x] Load test with fakes: about 10 concurrent Creates for 10 minutes without errors or stalls (`scripts/load_test.py`: 459 creates, 0 failed, 0 stalls, median 3.1 s; Compare does not exist yet; repeat in Phase 5)
 - [ ] Open the direct `.hf.space` URL on a real iPad and confirm the app is usable
 - [x] Record the outcome (free ZeroGPU or PRO with CPU Basic) in STATUS.md

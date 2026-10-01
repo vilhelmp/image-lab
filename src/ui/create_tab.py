@@ -17,6 +17,7 @@ from src.services.helpers import HelperService
 from src.services.library import PromptLibrary
 from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
+from src.ui.busy import build_busy_overlay, start_js
 from src.ui.chips import ChipRow, build_chip_row, wire_chips
 from src.ui.components import ApiVisibility, Block, Localizer, Updates, to_pil
 from src.ui.helper_row import HelperRow, build_helper_row, wire_helpers
@@ -121,15 +122,17 @@ def build_create_tab(
     )
     status = gr.Markdown(visible=False, elem_classes=["status-card"])
     rewrite_card = gr.Button(visible=False, variant="secondary", elem_classes=["rewrite-card"])
-    result = loc.make(
-        gr.Image,
-        lambda lang: {"label": t(lang, "create.result_label")},
-        visible=False,
-        interactive=False,
-        format="png",
-        buttons=["download"],
-        elem_id="result-image",
-    )
+    with gr.Column(elem_id="result-wrap"):
+        result = loc.make(
+            gr.Image,
+            lambda lang: {"label": t(lang, "create.result_label")},
+            visible=False,
+            interactive=False,
+            format="png",
+            buttons=["download"],
+            elem_id="result-image",
+        )
+        build_busy_overlay(loc)
     chips = (
         build_chip_row(settings=settings, loc=loc)
         if features.edit_chips and service.can_edit()
@@ -260,6 +263,7 @@ def build_create_tab(
         on_create,
         [text, device, session],
         [session, device, create_button, status, result, rewrite_card],
+        js=start_js("create"),
         **visibility,
     )
     if chips:

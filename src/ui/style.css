@@ -67,6 +67,63 @@ button {
   gap: 8px;
 }
 
+/* The "working" overlay: shown while #result-wrap has the busy class (see src/ui/busy.py). */
+#result-wrap {
+  position: relative;
+  gap: 0;
+}
+
+#busy-overlay {
+  display: none;
+}
+
+#result-wrap.busy {
+  min-height: 260px;
+}
+
+#result-wrap.busy #busy-overlay {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 10, 20, 0.6);
+  border-radius: 12px;
+}
+
+.busy-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.spinner {
+  width: 56px;
+  height: 56px;
+  border: 6px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: busy-spin 0.9s linear infinite;
+}
+
+@keyframes busy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#result-wrap.busy-create .busy-edit-text,
+#result-wrap.busy-edit .busy-create-text {
+  display: none;
+}
+
 .chip-button {
   min-height: 56px;
   flex: 1 1 140px;

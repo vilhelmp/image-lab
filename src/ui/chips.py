@@ -13,6 +13,7 @@ from src.errors import AppError, SafetyRefusalError, error_message_key
 from src.services.generation import ChipRequest, GenerationService
 from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
+from src.ui.busy import start_js
 from src.ui.components import ApiVisibility, Block, Localizer, Updates, to_pil
 
 logger = logging.getLogger(__name__)
@@ -150,5 +151,6 @@ def wire_chips(
             handler(key),
             [device, session],
             outputs,
+            js=start_js("edit"),
             api_visibility=api_visibility,
         )
