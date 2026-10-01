@@ -1,4 +1,4 @@
-/* Tap targets are at least 48px for iPad use. */
+/* Tap targets are at least 44px (Apple's minimum) for iPad use. */
 .gradio-container {
   max-width: 960px !important;
   width: 100% !important;
@@ -6,7 +6,38 @@
 }
 
 button {
-  min-height: 48px;
+  min-height: 44px;
+}
+
+body,
+.gradio-container,
+button,
+textarea {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif !important;
+}
+
+/* The two Create columns read as cards. */
+#controls-col,
+#result-col {
+  padding: 16px;
+  gap: 12px;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 16px;
+  background: var(--background-fill-secondary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+#header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+#header p {
+  margin: 2px 0 0;
+  font-size: 0.95rem;
+  opacity: 0.7;
 }
 
 #header {
@@ -47,12 +78,12 @@ button {
 }
 
 #idea-box textarea {
-  font-size: 1.3rem;
-  line-height: 1.4;
+  font-size: 1.05rem;
+  line-height: 1.45;
 }
 
 #idea-box label span {
-  font-size: 1.05rem;
+  font-size: 0.85rem;
   font-weight: 600;
 }
 
@@ -85,8 +116,8 @@ button {
   pointer-events: none;
   background: transparent;
   border: 0;
-  font-size: 1.15rem;
-  opacity: 0.75;
+  font-size: 0.95rem;
+  opacity: 0.65;
 }
 
 #result-wrap:has(#result-image img) #result-hint {
@@ -109,40 +140,58 @@ button {
 
 .section-heading p {
   margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.3;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  opacity: 0.75;
+}
+
+.section-heading strong {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 1;
 }
 
 #status-slot {
-  min-height: 56px;
+  min-height: 44px;
 }
 
 #style-row {
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .style-tile {
-  min-height: 56px;
-  flex: 1 1 90px;
-  font-size: 1.05rem;
+  min-height: 44px;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .primary-action {
-  min-height: 64px;
-  font-size: 1.25rem;
+  min-height: 52px;
+  font-size: 1.05rem;
+  font-weight: 600;
   width: 100%;
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  border: 0;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
 }
 
 .status-card {
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 12px;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
 }
 
 .rewrite-card {
-  min-height: 64px;
-  font-size: 1.1rem;
+  min-height: 52px;
+  font-size: 0.95rem;
   white-space: normal;
   text-align: left;
 }
@@ -181,17 +230,17 @@ button {
 }
 
 .new-visitor {
-  min-height: 56px;
+  min-height: 44px;
 }
 
 #helper-row {
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 #chip-row {
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* The "working" overlay: shown while #result-wrap has the busy class (see src/ui/busy.py). */
@@ -252,21 +301,30 @@ button {
 }
 
 .swap-button {
-  min-height: 52px;
+  min-height: 44px;
   width: 100%;
+  font-size: 0.95rem;
 }
 
 .chip-button {
-  min-height: 52px;
-  flex: 1 1 120px;
+  min-height: 44px;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .ideas-button,
 .helper-button {
-  min-height: 48px;
-  flex: 1 1 100px;
-  padding: 0 8px;
-  font-size: 1rem;
+  min-height: 44px;
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 /* The ideas popup: a fixed overlay, so it needs no modal component. */
@@ -384,7 +442,7 @@ button {
   border-left: 8px solid var(--kind);
   border-radius: 8px;
   background: var(--background-fill-secondary);
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .pipe-caption.active {
@@ -431,6 +489,6 @@ button {
 }
 
 .pipe-button {
-  min-height: 64px;
-  font-size: 1.15rem;
+  min-height: 52px;
+  font-size: 1rem;
 }
