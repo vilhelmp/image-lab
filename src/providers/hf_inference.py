@@ -1,4 +1,4 @@
-"""Image generation through Hugging Face Inference Providers (`image_backend: hf`, spec section 5).
+"""Image generation and editing through Hugging Face Inference Providers (spec section 5).
 
 Needs only `HF_TOKEN`. The model id and the routed provider come from `config/models.yaml`
 (`hf_model`, `hf_provider`), so adding a model is config-only. Returns PNG bytes. A call costs
@@ -21,18 +21,99 @@ from huggingface_hub.errors import HfHubHTTPError, InferenceTimeoutError
 
 from src.config import Settings
 from src.errors import BudgetReachedError, ProviderError, ProviderTimeoutError, RateLimitedError
-from src.providers.base import Aspect, ImageProvider, ImageRequest, ImageResult
+from src.providers.base import (
+    Aspect,
+    EditProvider,
+    EditRequest,
+    ImageProvider,
+    ImageRequest,
+    ImageResult,
+)
 from src.providers.http import UNBILLED_RETRY_STATUSES, Retry, run_with_retries
 
 logger = logging.getLogger(__name__)
 
 IMAGE_TIMEOUT_SECONDS = 45.0  # spec section 8: hard timeout for Create
+EDIT_TIMEOUT_SECONDS = 60.0  # spec section 8: hard timeout for an edit chip
 SIZES: dict[Aspect, tuple[int, int]] = {
     "square": (768, 768),
     "landscape": (1024, 576),
     "portrait": (576, 1024),
 }
 _FAL = "fal-ai"
+
+
+def safety_extra(provider: str | None) -> dict[str, Any] | None:
+    """The strictest safety flag a provider understands; only fal takes one through the router."""
+    return {"enable_safety_checker": True} if provider == _FAL else None
+
+
+class HFRunner:
+    """Runs one SDK call safely and returns PNG bytes: typed errors, billing-safe retries, a hard
+    deadline, and a worker thread so a blocking download cannot freeze the event loop."""
+
+    def __init__(
+        self,
+        token: str,
+        *,
+        client: Any = None,
+        timeout: float,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> None:
+        self._token = token
+        self._client = client  # a stand-in for tests; otherwise one client per provider
+        self._clients: dict[str | None, Any] = {}
+        self._timeout = timeout
+        self._sleep = sleep
+
+    def _client_for(self, provider: str | None) -> Any:
+        if self._client is not None:
+            return self._client
+        if provider not in self._clients:
+            self._clients[provider] = InferenceClient(
+                provider=provider or "auto", api_key=self._token, timeout=self._timeout
+            )
+        return self._clients[provider]
+
+    async def png(
+        self, label: str, provider: str | None, method: str, *args: Any, **kwargs: Any
+    ) -> bytes:
+        call = getattr(self._client_for(provider), method)
+
+        async def attempt(remaining: float) -> Any:
+            try:
+                # The SDK's fal route downloads the image with a blocking call, so the whole call
+                # runs in a worker thread: the event loop stays free and the timeout can fire.
+                return await asyncio.wait_for(
+                    asyncio.to_thread(call, *args, **kwargs), timeout=remaining
+                )
+            except (TimeoutError, InferenceTimeoutError, httpx.TimeoutException):
+                logger.warning("%s: timeout", label)
+                raise ProviderTimeoutError from None
+            except HfHubHTTPError as exc:
+                status = exc.response.status_code if exc.response is not None else 0
+                if status in UNBILLED_RETRY_STATUSES:
+                    logger.warning("%s: HTTP %d", label, status)
+                    raise Retry(
+                        RateLimitedError(), exc.response.headers.get("retry-after")
+                    ) from None
+                if status == 402:
+                    logger.error("%s: HTTP 402, the inference credit is used up", label)
+                    raise BudgetReachedError from None
+                logger.error("%s: HTTP %d, not retried", label, status)
+                raise ProviderError from None
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.error("%s: %s", label, type(exc).__qualname__)
+                raise ProviderError from None
+
+        image = await run_with_retries(attempt, total_timeout=self._timeout, sleep=self._sleep)
+        try:
+            return await asyncio.to_thread(_to_png, image)
+        except Exception as exc:
+            logger.error("%s: unusable image (%s)", label, type(exc).__qualname__)
+            raise ProviderError from None
 
 
 class HFImageProvider(ImageProvider):
@@ -45,75 +126,62 @@ class HFImageProvider(ImageProvider):
         timeout: float = IMAGE_TIMEOUT_SECONDS,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
-        self._token = token
-        self._sleep = sleep
         self._settings = settings
-        self._client = client  # one client per model provider, created on first use
-        self._clients: dict[str | None, Any] = {}
-        self._timeout = timeout
-
-    def _client_for(self, provider: str | None) -> Any:
-        if self._client is not None:
-            return self._client
-        if provider not in self._clients:
-            self._clients[provider] = InferenceClient(
-                provider=provider or "auto", api_key=self._token, timeout=self._timeout
-            )
-        return self._clients[provider]
+        self._runner = HFRunner(token, client=client, timeout=timeout, sleep=sleep)
 
     async def generate(self, req: ImageRequest) -> ImageResult:
         model = self._settings.models.image_models[req.model_key]
         if not model.hf_model:
             raise ProviderError  # config error: the model has no hf_model
-        client = self._client_for(model.hf_provider)
         width, height = SIZES[req.aspect]
-        extra = {"enable_safety_checker": True} if model.hf_provider == _FAL else None
         started = time.monotonic()
+        png = await self._runner.png(
+            f"hf image {req.model_key}",
+            model.hf_provider,
+            "text_to_image",
+            req.prompt,
+            model=model.hf_model,
+            width=width,
+            height=height,
+            extra_body=safety_extra(model.hf_provider),
+        )
+        return ImageResult(
+            image=png,
+            model_key=req.model_key,
+            seconds=time.monotonic() - started,
+            est_cost=model.est_cost_usd,
+        )
 
-        async def attempt(remaining: float) -> Any:
-            try:
-                # The SDK's fal route downloads the image with a blocking call, so the whole call
-                # runs in a worker thread: the event loop stays free and the timeout can fire.
-                return await asyncio.wait_for(
-                    asyncio.to_thread(
-                        client.text_to_image,
-                        req.prompt,
-                        model=model.hf_model,
-                        width=width,
-                        height=height,
-                        extra_body=extra,
-                    ),
-                    timeout=remaining,
-                )
-            except (TimeoutError, InferenceTimeoutError, httpx.TimeoutException):
-                logger.warning("hf image %s: timeout", req.model_key)
-                raise ProviderTimeoutError from None
-            except HfHubHTTPError as exc:
-                status = exc.response.status_code if exc.response is not None else 0
-                if status in UNBILLED_RETRY_STATUSES:
-                    logger.warning("hf image %s: HTTP %d", req.model_key, status)
-                    raise Retry(
-                        RateLimitedError(), exc.response.headers.get("retry-after")
-                    ) from None
-                if status == 402:
-                    logger.error(
-                        "hf image %s: HTTP 402, the inference credit is used up", req.model_key
-                    )
-                    raise BudgetReachedError from None
-                logger.error("hf image %s: HTTP %d, not retried", req.model_key, status)
-                raise ProviderError from None
-            except asyncio.CancelledError:
-                raise
-            except Exception as exc:
-                logger.error("hf image %s: %s", req.model_key, type(exc).__qualname__)
-                raise ProviderError from None
 
-        image = await run_with_retries(attempt, total_timeout=self._timeout, sleep=self._sleep)
-        try:
-            png = await asyncio.to_thread(_to_png, image)
-        except Exception as exc:
-            logger.error("hf image %s: unusable image (%s)", req.model_key, type(exc).__qualname__)
-            raise ProviderError from None
+class HFEditProvider(EditProvider):
+    """Instruction-based editing (image to image): the current image plus a short instruction."""
+
+    def __init__(
+        self,
+        token: str,
+        settings: Settings,
+        *,
+        client: Any = None,
+        timeout: float = EDIT_TIMEOUT_SECONDS,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> None:
+        self._settings = settings
+        self._runner = HFRunner(token, client=client, timeout=timeout, sleep=sleep)
+
+    async def edit(self, req: EditRequest) -> ImageResult:
+        model = self._settings.models.edit_models[req.model_key]
+        if not model.hf_model:
+            raise ProviderError  # config error: the model has no hf_model
+        started = time.monotonic()
+        png = await self._runner.png(
+            f"hf edit {req.model_key}",
+            model.hf_provider,
+            "image_to_image",
+            req.image,
+            prompt=req.instruction,
+            model=model.hf_model,
+            extra_body=safety_extra(model.hf_provider),
+        )
         return ImageResult(
             image=png,
             model_key=req.model_key,

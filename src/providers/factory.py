@@ -14,7 +14,7 @@ from src.providers.fake import (
     FakeModerator,
     FakeTextProvider,
 )
-from src.providers.hf_inference import HFImageProvider
+from src.providers.hf_inference import HFEditProvider, HFImageProvider
 from src.providers.openai_moderation import OpenAIModerator
 from src.providers.openai_text import OpenAITextProvider
 
@@ -47,6 +47,16 @@ def build_image(settings: Settings, env: Mapping[str, str] | None = None) -> Ima
     raise NotImplementedError("The fal backend is not built yet. Use image_backend: hf.")
 
 
+def build_edit(settings: Settings, env: Mapping[str, str] | None = None) -> EditProvider | None:
+    """The edit provider, or None when no edit model is available (chips then use the fallback)."""
+    env = os.environ if env is None else env
+    if settings.active_edit_model() is None:
+        return None
+    if settings.config.image_backend == "hf":
+        return HFEditProvider(env["HF_TOKEN"], settings)
+    raise NotImplementedError("The fal backend is not built yet. Use image_backend: hf.")
+
+
 def build_providers(settings: Settings, env: Mapping[str, str] | None = None) -> Providers:
     if settings.development_mode:
         delay = settings.config.app.fake_delay_seconds
@@ -58,7 +68,7 @@ def build_providers(settings: Settings, env: Mapping[str, str] | None = None) ->
         )
     return Providers(
         image=build_image(settings, env),
-        edit=None,  # edit chips arrive in phase 4
+        edit=build_edit(settings, env),
         text=build_text(settings, env),
         moderator=build_moderator(settings, env),
     )

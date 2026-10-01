@@ -119,6 +119,7 @@ class EditModel(_Strict):
     provider: Literal["fal", "hf"]
     api_model: str
     hf_model: str | None = None
+    hf_provider: str | None = None  # which provider Hugging Face routes to; null lets HF choose
     est_cost_usd: float = Field(ge=0)
     enabled: bool = True
 

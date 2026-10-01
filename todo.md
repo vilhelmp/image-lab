@@ -79,7 +79,7 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [x] Help me and Surprise me buttons with Undo (`src/services/helpers.py`, `src/ui/helper_row.py`). Every reply passes moderation and the policy check; a refused idea gets the usual refusal; a failed Surprise falls back to a library prompt; per-device 2 s interval and the pause switch apply
 - [x] `tests/safety_cases.yaml` (about 40 SV and EN cases) and `test_safety.py`. The CI replay uses table-driven fakes, so it checks the pipeline logic, not any model's judgement
 - [x] Script to run safety cases against real services and print pass or fail. First real run 2026-09-30 with OpenAI moderation and `gpt-6-luna`: 40 of 41 passed, 0 failed, 1 known issue (see Notes)
-- [ ] Verify real model IDs, prices and latency; replace `<verify>` placeholders. Done: text, moderation and image model ids (from the HF provider mapping); schnell latency 5.0 s and 9.5 s (target p50 6 s, so measure more runs) Open: latency of `detailed` and `artistic`, actual prices on the HF billing page (the prices in `models.yaml` are estimates), the edit model (Phase 4)
+- [ ] Verify real model IDs, prices and latency; replace `<verify>` placeholders. Done: text, moderation and image model ids (from the HF provider mapping); schnell latency 5.0 s and 9.5 s (target p50 6 s, so measure more runs) Open: latency of `detailed` and `artistic`, the actual prices of those two (fal bills per megapixel, rounded up, so schnell is $0.003 per image: measured $0.13 for 44 requests, and `est_cost_usd` for `fast` is now 0.003; dev and Qwen-Image are probably about $0.025 and $0.02, still estimated higher), the edit model (Phase 4)
 - [ ] Logging check: no prompts, image bytes or secrets. Done: adapter log lines carry only model key, status code and exception class; `src/logging_setup.py` keeps httpx, httpcore and huggingface_hub at WARNING. Open: a full pass over the running app's logs
 - [ ] Image adapter follow-ups from the safety review: the SDK's blocking image download in its worker thread has no explicit timeout (a hung thread would linger); `hf_provider: null` routes to "auto", so require `hf_provider` in config or accept the cost drift; the adapter's 45 s budget starts after moderation while the outer Create timeout is also 45 s
 - [x] Real-keys check before the Space: `scripts/check_real_flow.py` passed 2026-09-30 (startup validation, a real image in 8 to 9 s, a cached example, three refusals, Help me, Surprise me, 40 log lines and 0 leaks). Helpers take 2.6 to 5.6 s (target 3 s); the first refusal of a named politician took 11 to 14 s twice, so watch policy-check latency against its 15 s timeout
@@ -92,7 +92,8 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 
 ## Phase 4: Edit chips
 
-- [ ] Edit adapter for fal, and HF where supported
+- [x] Edit adapter over HF `image_to_image`: `HFEditProvider` (shares `HFRunner` with the image adapter), `EditModel.hf_provider`, `build_edit` in the factory (None until an edit model has `hf_model`). `scripts/bakeoff.py` compares models (t2i or edit) with latency and a contact sheet
+- [ ] Choose the edit model from the bake-off and set it in `config/models.yaml`. Candidates, all live on fal-ai through HF with task image-to-image (checked 2026-09-30): `black-forest-labs/FLUX.1-Kontext-dev` (fal-ai/flux-kontext/dev), `black-forest-labs/FLUX.2-klein-9B` (fal-ai/flux-2/klein/9b/edit), `Qwen/Qwen-Image-Edit` (fal-ai/qwen-image-edit). Next: `HFEditProvider` over `InferenceClient.image_to_image` plus a `try_edit` script, then measure latency, price and quality of each and check licences before choosing. Licences (HF model cards, 2026-10-01): Apache-2.0 are FLUX.1-schnell, Z-Image-Turbo, Qwen-Image, Qwen-Image-Edit(-2511) and FLUX.2-klein-4B; non-commercial are FLUX.1-dev, FLUX.1-Kontext-dev, FLUX.2-klein-9B and Ideogram 4; Krea-2-Turbo has its own community licence. Prefer Apache models for anything visitors use (the FLUX dev licence lists use "in direct interactions with end users" as not non-commercial); `quality` (FLUX.1-dev) is configured but unused until Compare, so replace or confirm it before then. Edit candidate to test first: FLUX.2-klein-4B (Apache, about 4 s)
 - [ ] Chip config in `app.yaml`, static instructions, and LLM-picked "new setting"
 - [ ] Chips send current image plus instruction to the edit model; previous image goes to history
 - [ ] Fallback to rewrite and regenerate labelled "Ny version" when no edit model
@@ -130,7 +131,7 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [ ] README states the hardware tested (ZeroGPU on a free account and/or CPU Basic on PRO) and the Space's sleep and wake behaviour (spec §18.5)
 - [ ] Workshop checklist in README (spec §19)
 - [ ] Optional QR handoff (`features.qr_handoff`), documented as an unauthenticated route
-- [ ] Deploy to the HF Gradio SDK Space on the hardware chosen in Phase 1b; set secrets and turn off `DEVELOPMENT_MODE`; Storage Bucket stays off
+- [ ] Deploy to the HF Gradio SDK Space on the hardware chosen in Phase 1b; set secrets and turn off `DEVELOPMENT_MODE`; Storage Bucket stays off. Done 2026-09-30: secrets set, real image generated on `magnusp-image-lab.hf.space`. Open: admin tab and Space logs check, iPad test, wake time, billing limits confirmed
 - [ ] Full smoke test: Create and Compare with fakes in CI
 
 ## Workshop readiness (spec §19 and §21)

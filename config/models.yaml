@@ -9,7 +9,7 @@ image_models:
     api_model: "fal-ai/flux/schnell"
     hf_model: "black-forest-labs/FLUX.1-schnell"
     hf_provider: fal-ai
-    est_cost_usd: 0.005
+    est_cost_usd: 0.003 # measured 2026-09-30: $0.13 for 44 requests on the HF billing page
     translate_to_english: false
     enabled: true
 

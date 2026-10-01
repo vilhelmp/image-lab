@@ -349,7 +349,7 @@ async def test_timeout_during_the_provider_call_keeps_the_estimate(
         await service.create(CreateRequest(text="a cat", device_hash="a"))
     snap = limits.snapshot()
     assert snap.images_used == 1
-    assert snap.spend_usd == pytest.approx(0.005)
+    assert snap.spend_usd == pytest.approx(dev_settings.models.image_models["fast"].est_cost_usd)
     assert snap.recent["error"] == 1
 
 
