@@ -7,12 +7,20 @@ from pathlib import Path
 import gradio as gr
 
 CSS_PATH = Path(__file__).with_name("style.css")
+LOGIN_CSS_PATH = Path(__file__).with_name("login.css")
 # System fonts only: no request to a font server from a visitor's iPad.
 SYSTEM_FONTS = ("ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif")
 
 
+class AppTheme(gr.themes.Soft):
+    """Soft, plus the login page rules: that page loads /theme.css but ignores css= and head=."""
+
+    def _get_theme_css(self) -> str:
+        return super()._get_theme_css() + "\n\n" + LOGIN_CSS_PATH.read_text(encoding="utf-8")
+
+
 def build_theme() -> gr.themes.Base:
-    return gr.themes.Soft(
+    return AppTheme(
         primary_hue="indigo",
         neutral_hue="slate",
         text_size="md",

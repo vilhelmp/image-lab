@@ -3,6 +3,7 @@
   "app.title": "AI Image Lab",
   "app.subtitle": "Beskriv en bild och se AI skapa den.",
   "theme.toggle": "◐",
+  "login.message": "Skriv in användarnamn och lösenord som du fick av handledaren.",
   "tab.create": "Skapa",
   "tab.how": "Så funkar det",
   "tab.admin": "Status",

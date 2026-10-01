@@ -3,6 +3,7 @@
   "app.title": "AI Image Lab",
   "app.subtitle": "Describe a picture and watch AI create it.",
   "theme.toggle": "◐",
+  "login.message": "Enter the username and password you got from the supervisor.",
   "tab.create": "Create",
   "tab.how": "How it works",
   "tab.admin": "Status",

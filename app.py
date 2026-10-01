@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 import os
 from typing import Any
@@ -88,6 +89,13 @@ CLOSE_CONFIRM_JS = (
     "(...args) => { " + _open_class_js("new-visitor-confirm", "remove") + "; return args; }"
 )
 DEVICE_STORAGE_KEY = "ai-image-lab-device"
+
+
+def login_message(i18n: I18n, languages: list[str]) -> str:
+    """The text on Gradio's login page, which has no language switch, so every language shows."""
+    parts = [f"<strong>{html.escape(i18n.t(languages[0], 'app.title'))}</strong>"]
+    parts += [f"<span>{html.escape(i18n.t(code, 'login.message'))}</span>" for code in languages]
+    return '<div class="login-intro">' + "".join(parts) + "</div>"
 
 
 def build_demo(
@@ -270,11 +278,13 @@ def main() -> None:
     )
     logger.info("Login required: %s", "yes" if auth else "no")
     logger.warning("Budget counters start at zero. Provider prepaid credit is the hard limit.")
+    i18n = I18n.load(settings.config.app.languages, settings.config.app.default_language)
     demo.launch(
         theme=build_theme(),
         css=load_css(),
         ssr_mode=False,
         auth=auth,
+        auth_message=login_message(i18n, settings.config.app.languages),
         footer_links=[],
         mcp_server=False,
     )
