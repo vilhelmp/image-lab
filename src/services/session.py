@@ -21,6 +21,7 @@ class VisitorSession:
     dirty: bool = False
     style: str | None = None
     current: GeneratedImage | None = None
+    previous: GeneratedImage | None = None  # the image before the last edit, for before/after
     history: list[GeneratedImage] = field(default_factory=list)
     undo_text: str | None = field(
         default=None, repr=False
@@ -36,7 +37,20 @@ class VisitorSession:
 
     def set_current(self, image: GeneratedImage, history_size: int) -> None:
         self.current = image
+        self.previous = None
         self.history = [*self.history, image][-history_size:]
+
+    def set_edited(self, image: GeneratedImage, history_size: int) -> None:
+        before = self.current
+        self.set_current(image, history_size)
+        self.previous = before
+
+    def swap(self) -> bool:
+        """Show the other of the two latest images; False if there is only one."""
+        if self.current is None or self.previous is None:
+            return False
+        self.current, self.previous = self.previous, self.current
+        return True
 
     def is_idle(self, seconds: float, now: float | None = None) -> bool:
         now = time.monotonic() if now is None else now
@@ -46,6 +60,7 @@ class VisitorSession:
         self.lang = lang
         self.style = None
         self.current = None
+        self.previous = None
         self.history = []
         self.undo_text = None
         self.epoch += 1

@@ -276,12 +276,15 @@ def build_create_tab(
     if chips:
 
         def show_chips(current: VisitorSession):
-            return [gr.update(interactive=current.current is not None)] * len(chips.buttons)
+            return [
+                *[gr.update(interactive=current.current is not None)] * len(chips.buttons),
+                gr.update(interactive=current.previous is not None),
+            ]
 
         created.then(
             show_chips,
             [session],
-            list(chips.buttons.values()),
+            [*chips.buttons.values(), chips.swap],
             queue=False,
             show_progress="hidden",
             **visibility,

@@ -23,17 +23,25 @@ logger = logging.getLogger(__name__)
 class ChipRow:
     row: gr.Row
     buttons: dict[str, gr.Button]
+    swap: gr.Button
 
     @property
     def managed(self) -> list[Block]:
-        return [self.row, *self.buttons.values()]
+        return [self.row, self.swap, *self.buttons.values()]
 
     def reset_props(self) -> Updates:
-        return {button: {"interactive": False} for button in self.buttons.values()}
+        return {button: {"interactive": False} for button in [self.swap, *self.buttons.values()]}
 
 
 def build_chip_row(*, settings: Settings, loc: Localizer) -> ChipRow:
     chips = settings.config.edit_chips
+    swap = loc.make(
+        gr.Button,
+        lambda lang: {"value": loc.t(lang, "chips.swap")},
+        variant="secondary",
+        elem_classes=["swap-button"],
+        interactive=False,
+    )
     build_heading(loc, "chips.heading", "chips.hint")
     with gr.Row(elem_id="chip-row") as row:
         buttons = {
@@ -46,7 +54,7 @@ def build_chip_row(*, settings: Settings, loc: Localizer) -> ChipRow:
             )
             for key in settings.config.ui.edit_chips
         }
-    return ChipRow(row, buttons)
+    return ChipRow(row, buttons, swap)
 
 
 def wire_chips(
@@ -64,7 +72,7 @@ def wire_chips(
 ) -> None:
     t = loc.t
     history_size = settings.config.ui.history_size
-    outputs = [session, device, create_button, *chips.buttons.values(), status, result]
+    outputs = [session, device, create_button, *chips.buttons.values(), chips.swap, status, result]
     count = len(chips.buttons)
 
     def handler(key: str):
@@ -75,7 +83,7 @@ def wire_chips(
             source = current.current
             epoch = current.epoch
             if source is None:
-                yield (current, device_id, *[gr.skip()] * (count + 3))
+                yield (current, device_id, *[gr.skip()] * (count + 4))
                 return
             busy = gr.update(interactive=False)
             yield (
@@ -83,6 +91,7 @@ def wire_chips(
                 device_id,
                 busy,
                 *[busy] * count,
+                busy,
                 gr.update(value=t(lang, "edit.working"), visible=True),
                 gr.skip(),
             )
@@ -111,6 +120,7 @@ def wire_chips(
                     device_id,
                     ready,
                     *[off] * count,
+                    off,
                     gr.update(value="", visible=False),
                     gr.skip(),
                 )
@@ -126,11 +136,12 @@ def wire_chips(
                     device_id,
                     ready,
                     *[ready] * count,
+                    gr.update(interactive=current.previous is not None),
                     gr.update(value=message, visible=True),
                     gr.skip(),
                 )
                 return
-            current.set_current(
+            current.set_edited(
                 GeneratedImage(made.image, source.prompt, made.model_key, made.seconds),
                 history_size,
             )
@@ -139,6 +150,7 @@ def wire_chips(
                 device_id,
                 ready,
                 *[ready] * count,
+                ready,
                 gr.update(value="", visible=False),
                 gr.update(value=picture, visible=True),
             )
@@ -154,3 +166,19 @@ def wire_chips(
             js=start_js("edit"),
             api_visibility=api_visibility,
         )
+
+    def on_swap(current: VisitorSession):
+        current.touch()
+        if not current.swap():
+            return current, gr.skip()
+        assert current.current is not None
+        return current, gr.update(value=to_pil(current.current.image), visible=True)
+
+    chips.swap.click(
+        on_swap,
+        [session],
+        [session, result],
+        queue=False,
+        show_progress="hidden",
+        api_visibility=api_visibility,
+    )

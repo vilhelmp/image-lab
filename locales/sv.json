@@ -29,6 +29,7 @@
   "ideas.example_note": "Det här är en exempelbild. Ändra beskrivningen och tryck på Skapa bild för att få din egen.",
   "style.heading": "Välj en stil (valfritt)",
   "style.hint": "Stilen läggs till i din beskrivning och ändrar hur bilden ser ut.",
+  "chips.swap": "Växla före / efter",
   "chips.heading": "Ändra din bild",
   "chips.hint": "Tryck på en knapp så ändrar AI bilden. Skapa en bild först.",
   "style.photo": "Foto",

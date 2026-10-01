@@ -29,6 +29,7 @@
   "ideas.example_note": "This is an example picture. Change the description and tap Create image to get your own.",
   "style.heading": "Pick a style (optional)",
   "style.hint": "The style is added to your description and changes how the picture looks.",
+  "chips.swap": "Switch before / after",
   "chips.heading": "Change your picture",
   "chips.hint": "Tap a button and AI changes the picture. Create a picture first.",
   "style.photo": "Photo",

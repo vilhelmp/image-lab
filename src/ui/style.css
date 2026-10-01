@@ -172,6 +172,11 @@ button {
   display: none;
 }
 
+.swap-button {
+  min-height: 52px;
+  width: 100%;
+}
+
 .chip-button {
   min-height: 52px;
   flex: 1 1 120px;

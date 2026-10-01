@@ -50,3 +50,25 @@ def test_reset_bumps_the_epoch_so_work_for_the_previous_visitor_can_be_dropped()
     before = session.epoch
     session.reset("sv")
     assert session.epoch == before + 1
+
+
+def test_an_edit_keeps_the_image_before_it_and_swap_toggles_between_them():
+    session = VisitorSession(lang="sv")
+    before, after = _image("before"), _image("after")
+    session.set_current(before, 6)
+    assert session.previous is None and not session.swap()
+    session.set_edited(after, 6)
+    assert session.current is after and session.previous is before
+    assert session.swap() and session.current is before
+    assert session.swap() and session.current is after
+
+
+def test_a_new_image_or_a_reset_drops_the_before_image():
+    session = VisitorSession(lang="sv")
+    session.set_current(_image("a"), 6)
+    session.set_edited(_image("b"), 6)
+    session.set_current(_image("c"), 6)
+    assert session.previous is None
+    session.set_edited(_image("d"), 6)
+    session.reset("sv")
+    assert session.previous is None and session.current is None

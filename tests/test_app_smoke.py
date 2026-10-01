@@ -145,3 +145,16 @@ def test_idle_reset_only_fires_after_interaction_and_idle_time(client: Client):
     time.sleep(1.2)
     assert client.predict(api_name="/on_idle")[2]["value"] == ""
     assert client.predict(api_name="/on_idle")[2] == NOOP
+
+
+def test_swap_toggles_between_the_image_before_and_after_a_chip(client: Client):
+    client.predict("A cat", None, api_name="/on_create")
+    _, _, edited = client.predict(None, api_name="/on_chip_evening_light")
+    original = client.predict(api_name="/on_swap")
+    assert original["value"] != edited["value"]
+    assert client.predict(api_name="/on_swap")["value"] != original["value"]
+
+
+def test_swap_without_an_edit_does_nothing(client: Client):
+    client.predict("A cat", None, api_name="/on_create")
+    assert client.predict(api_name="/on_swap") == NOOP
