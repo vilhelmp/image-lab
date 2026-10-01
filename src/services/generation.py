@@ -1,36 +1,45 @@
-"""Create flow: validate, compose, moderate prompt, generate, moderate image (spec 8.1)."""
+"""Create and edit flows: validate, check, generate or edit, check the image (spec 8.1).
+
+Both go through `paid_call`, so budget accounting is identical. Only AppError escapes. Log lines
+hold no prompts, images or secrets.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
+from collections.abc import Awaitable, Callable
 
 from pydantic import BaseModel, Field
 
-from src.config import Settings
+from src.config import EditChip, Settings
 from src.errors import (
     AppError,
     BudgetReachedError,
     CooldownError,
     EmptyInputError,
     PausedError,
+    ProviderError,
     ProviderTimeoutError,
     RateLimitedError,
     SafetyRefusalError,
     TooLongInputError,
     error_code,
 )
-from src.providers.base import Aspect, ImageRequest
+from src.providers.base import Aspect, EditRequest, ImageRequest
 from src.providers.factory import Providers
+from src.services.helpers import HelperService
 from src.services.library import PromptLibrary
 from src.services.limits import Kind, LimitService
 from src.services.prompts import compose_prompt, style_fragment
 from src.services.safety import SafetyService, validate_input
+from src.services.spend import paid_call
 
 logger = logging.getLogger(__name__)
 
 CREATE_TIMEOUT_SECONDS = 45
+EDIT_TIMEOUT_SECONDS = 60
 LIBRARY_MODEL_KEY = "library"
 INPUT_ERRORS = (EmptyInputError, TooLongInputError)
 LIMIT_ERRORS = (PausedError, BudgetReachedError, CooldownError, RateLimitedError)
@@ -40,6 +49,14 @@ class CreateRequest(BaseModel):
     text: str = Field(repr=False)
     style: str | None = None
     aspect: Aspect = "square"
+    lang: str = "sv"
+    device_hash: str | None = None
+
+
+class ChipRequest(BaseModel):
+    chip_key: str
+    image: bytes = Field(repr=False)  # the visitor's current image
+    current_prompt: str = Field(repr=False)
     lang: str = "sv"
     device_hash: str | None = None
 
@@ -54,7 +71,7 @@ class GenerationResult(BaseModel):
 
 
 class GenerationService:
-    """Only AppError escapes create(). Log lines hold no prompts, images or secrets."""
+    """Only AppError escapes create() and edit()."""
 
     def __init__(
         self,
@@ -62,12 +79,17 @@ class GenerationService:
         providers: Providers,
         limits: LimitService,
         library: PromptLibrary | None = None,
+        helpers: HelperService | None = None,
     ) -> None:
         self._settings = settings
         self._providers = providers
         self._limits = limits
         self._library = library
+        self._helpers = helpers
         self._safety = SafetyService(providers.moderator, providers.text, settings.config.safety)
+
+    def can_edit(self) -> bool:
+        return self._providers.edit is not None and self._settings.active_edit_model() is not None
 
     async def _library_example(self, req: CreateRequest) -> GenerationResult | None:
         """The cached image for an unchanged library prompt with no style, else None."""
@@ -101,13 +123,41 @@ class GenerationService:
         if example := await self._library_example(req):
             return example
         model_key = self._settings.models.defaults.create_model
+        return await self._observed(
+            model_key,
+            req.device_hash,
+            CREATE_TIMEOUT_SECONDS,
+            lambda: self._create(req, model_key),
+        )
+
+    async def edit(self, req: ChipRequest) -> GenerationResult:
+        """Apply a one-tap chip to the visitor's current image with the configured edit model."""
+        chip = self._settings.config.edit_chips.get(req.chip_key)
+        active = self._settings.active_edit_model()
+        if chip is None or active is None or self._providers.edit is None:
+            raise ProviderError  # an unknown chip or no edit model: the UI never offers this
+        model_key, model = active
+        return await self._observed(
+            model_key,
+            req.device_hash,
+            EDIT_TIMEOUT_SECONDS,
+            lambda: self._edit(req, chip, model_key, model.est_cost_usd),
+        )
+
+    async def _observed(
+        self,
+        model_key: str,
+        device: str | None,
+        timeout: float,
+        run: Callable[[], Awaitable[GenerationResult]],
+    ) -> GenerationResult:
         started = time.perf_counter()
         cost = 0.0
         outcome = "cancelled"
         kind: Kind | None = None
         try:
-            async with asyncio.timeout(CREATE_TIMEOUT_SECONDS):
-                result = await self._create(req, model_key)
+            async with asyncio.timeout(timeout):
+                result = await run()
             cost = result.est_cost
             outcome, kind = "ok", "ok"
             return result
@@ -132,45 +182,64 @@ class GenerationService:
                 outcome,
                 seconds,
                 cost,
-                req.device_hash or "-",
+                device or "-",
             )
 
     async def _create(self, req: CreateRequest, model_key: str) -> GenerationResult:
         config = self._settings.config
         text = validate_input(req.text, config.safety.max_input_chars)
-        est_cost = self._settings.models.image_models[model_key].est_cost_usd
-        reservation = self._limits.reserve(count=1, est_cost=est_cost, device=req.device_hash)
-        provider_called = False
-        try:
-            final_prompt = compose_prompt(text, style_fragment(config.style_fragments, req.style))
+        final_prompt = compose_prompt(text, style_fragment(config.style_fragments, req.style))
 
+        async def prepare() -> None:
             await self._safety.check_prompt(final_prompt, req.lang)
 
-            async with self._limits.slot():
-                provider_called = True
-                result = await self._providers.image.generate(
-                    ImageRequest(prompt=final_prompt, model_key=model_key, aspect=req.aspect)
-                )
-        except BaseException as exc:
-            # Once the provider was called, a failure may still have been billed (a timeout, a
-            # dropped connection, a 5xx): keep the estimate unless the error is known unbilled.
-            if provider_called and not getattr(exc, "unbilled", False):
-                self._limits.reconcile(reservation, est_cost)
-            else:
-                self._limits.release(reservation)
-            if provider_called and isinstance(exc, BudgetReachedError):
-                # The prepaid credit is used up: stop paid calls until an admin resumes.
-                logger.error("Provider credit exhausted: pausing generation")
-                self._limits.set_paused(True)
-            raise
-        # The image exists and is paid for, even if the output check refuses it below.
-        self._limits.reconcile(reservation, result.est_cost)
-
+        result = await paid_call(
+            self._limits,
+            est_cost=self._settings.models.image_models[model_key].est_cost_usd,
+            device=req.device_hash,
+            prepare=prepare,
+            call=lambda: self._providers.image.generate(
+                ImageRequest(prompt=final_prompt, model_key=model_key, aspect=req.aspect)
+            ),
+        )
+        # The image exists and is paid for, even if the output check refuses it here.
         await self._safety.check_image(result.image)
-
         return GenerationResult(
             image=result.image,
             final_prompt=final_prompt,
+            model_key=model_key,
+            seconds=result.seconds,
+            est_cost=result.est_cost,
+        )
+
+    async def _edit(
+        self, req: ChipRequest, chip: EditChip, model_key: str, est_cost: float
+    ) -> GenerationResult:
+        edit_provider = self._providers.edit
+        assert edit_provider is not None  # checked in edit()
+        instruction = chip.instruction or ""
+
+        async def prepare() -> None:
+            nonlocal instruction
+            if chip.llm:
+                if self._helpers is None:
+                    raise ProviderError
+                # The LLM's wording is checked inside before it can reach the edit model.
+                instruction = await self._helpers.edit_instruction(req.current_prompt, req.lang)
+
+        result = await paid_call(
+            self._limits,
+            est_cost=est_cost,
+            device=req.device_hash,
+            prepare=prepare,
+            call=lambda: edit_provider.edit(
+                EditRequest(image=req.image, instruction=instruction, model_key=model_key)
+            ),
+        )
+        await self._safety.check_image(result.image)
+        return GenerationResult(
+            image=result.image,
+            final_prompt=instruction,
             model_key=model_key,
             seconds=result.seconds,
             est_cost=result.est_cost,

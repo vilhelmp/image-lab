@@ -119,6 +119,12 @@ async def main() -> int:
     parser.add_argument("mode", choices=["t2i", "edit"])
     parser.add_argument("models", nargs="+", help="huggingface-id@provider")
     parser.add_argument("--source", default="fox-snow", help="library image to edit (edit mode)")
+    parser.add_argument(
+        "--instruction",
+        action="append",
+        default=[],
+        help="edit instruction to try instead of the defaults (repeatable)",
+    )
     args = parser.parse_args()
 
     sys.stdout.reconfigure(encoding="utf-8")
@@ -131,13 +137,20 @@ async def main() -> int:
     runner = HFRunner(token, timeout=TIMEOUT_SECONDS)
 
     source = load_source(args.source) if args.mode == "edit" else None
-    columns = list(EDIT_INSTRUCTIONS if source else T2I_PROMPTS)
+    instructions = (
+        {f"#{n}": text for n, text in enumerate(args.instruction, 1)}
+        if args.instruction
+        else EDIT_INSTRUCTIONS
+    )
+    for label, text in instructions.items() if args.instruction else []:
+        print(f"{label}: {text}")
+    columns = list(instructions if source else T2I_PROMPTS)
     cells: dict[tuple[str, str], Cell] = {}
     for spec in args.models:
         for column in columns:
             if source:
                 cell = await run_cell(
-                    runner, spec, "image_to_image", source, prompt=EDIT_INSTRUCTIONS[column]
+                    runner, spec, "image_to_image", source, prompt=instructions[column]
                 )
             else:
                 width, height = SIZES["square"]

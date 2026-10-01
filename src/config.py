@@ -83,12 +83,28 @@ class LimitsSection(_Strict):
     device_max_images_per_hour: int | None = Field(default=None, gt=0)
 
 
+class EditChip(_Strict):
+    """A one-tap edit. `instruction` is a static English instruction for the edit model; `llm`
+    means the helper LLM picks the specifics (for example a new setting) each time."""
+
+    label: LocalizedText
+    instruction: str | None = None
+    llm: bool = False
+
+    @model_validator(mode="after")
+    def _static_or_llm(self) -> EditChip:
+        if bool(self.instruction) == self.llm:
+            raise ValueError("an edit chip needs either an instruction or llm: true, not both")
+        return self
+
+
 class AppConfig(_Strict):
     image_backend: Literal["fal", "hf"]
     app: AppSection
     features: FeaturesSection
     ui: UiSection
     style_fragments: dict[str, str]
+    edit_chips: dict[str, EditChip]
     access: AccessSection
     safety: SafetySection
     limits: LimitsSection
@@ -100,6 +116,13 @@ class AppConfig(_Strict):
             raise ValueError(f"style_fragments missing for ui.styles: {missing}")
         if not set(self.app.languages) <= set(self.ui.challenge):
             raise ValueError("ui.challenge must have text for every language in app.languages")
+        unknown = [key for key in self.ui.edit_chips if key not in self.edit_chips]
+        if unknown:
+            raise ValueError(f"edit_chips missing for ui.edit_chips: {unknown}")
+        languages = set(self.app.languages)
+        for key, chip in self.edit_chips.items():
+            if not languages <= set(chip.label):
+                raise ValueError(f"edit chip '{key}' needs a label per language")
         return self
 
 

@@ -305,7 +305,7 @@ All calls return JSON validated with Pydantic; on malformed output, retry once, 
 
 - **improve(text, lang)** → `{ "prompt": str }`. Preserve subject and intent; add at most 2–3 concrete visual details (setting, light, perspective, medium); max ~40 words; no "8k, ultra-detailed, cinematic" filler; answer in `lang`; family-friendly.
 - **surprise(lang)** → `{ "prompt": str }`. Whimsical, family-friendly, visually concrete, ideally with a Swedish touch. Avoid real people, trademarked characters, politics, violence.
-- **edit_instruction(chip_key, current_prompt, lang)** → `{ "instruction": str, "new_prompt": str }`. Used for chips like "New setting" where the LLM must pick specifics. Simple chips (e.g. "Evening light") use static instructions from config and skip the LLM entirely.
+- **edit_instruction(chip_key, current_prompt, lang)** → `{ "instruction": str }`. Used for chips like "New setting" where the LLM must pick specifics. The instruction is moderated and policy-checked before it reaches the edit model. (v2 also had a `new_prompt` field; it is dropped because nothing uses it and unused LLM text would skip moderation.) Simple chips (e.g. "Evening light") use static instructions from config and skip the LLM entirely.
 - **policy_check(text)** → see §8.
 
 ### 6.2 Composer

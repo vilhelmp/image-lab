@@ -58,8 +58,8 @@ def build_demo(
     limits = limits or LimitService(cfg.limits)
     library = library or load_library(settings).with_images(load_lock())
     providers = providers or build_providers(settings)
-    service = GenerationService(settings, providers, limits, library)
     helpers = HelperService(settings, providers, limits, library)
+    service = GenerationService(settings, providers, limits, library, helpers)
     loc = Localizer(i18n)
     t = loc.t
     api_visibility: ApiVisibility = "undocumented" if cfg.access.expose_api else "private"

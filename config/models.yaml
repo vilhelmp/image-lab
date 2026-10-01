@@ -35,10 +35,12 @@ image_models:
 
 edit_models:
   default_edit:
+    # FLUX.2 klein 4B: Apache-2.0, 3.9 to 5.2 s in the 2026-10-01 bake-off (see todo.md)
     provider: fal
-    api_model: "<verify: instruction-based image edit model>"
-    # hf_model omitted until an HF image-edit route is verified; edit chips then use the fallback
-    est_cost_usd: 0.04
+    api_model: "fal-ai/flux-2/klein/4b/distilled/edit"
+    hf_model: "black-forest-labs/FLUX.2-klein-4B"
+    hf_provider: fal-ai
+    est_cost_usd: 0.01 # estimate; check the HF billing page after the first edits
     enabled: true
 
 text_models:

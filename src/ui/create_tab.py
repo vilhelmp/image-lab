@@ -17,6 +17,7 @@ from src.services.helpers import HelperService
 from src.services.library import PromptLibrary
 from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
+from src.ui.chips import ChipRow, build_chip_row, wire_chips
 from src.ui.components import ApiVisibility, Block, Localizer, Updates, to_pil
 from src.ui.helper_row import HelperRow, build_helper_row, wire_helpers
 
@@ -37,6 +38,7 @@ class CreateTab:
     result: gr.Image
     rewrite_card: gr.Button
     helper_row: HelperRow
+    chips: ChipRow | None = None
 
     @property
     def managed(self) -> list[Block]:
@@ -48,6 +50,7 @@ class CreateTab:
             self.result,
             self.rewrite_card,
             *self.helper_row.managed,
+            *(self.chips.managed if self.chips else []),
         ]
 
     def reset_props(self) -> Updates:
@@ -58,6 +61,7 @@ class CreateTab:
             self.result: {"value": None, "visible": False},
             self.rewrite_card: {"value": "", "visible": False},
             **self.helper_row.reset_props(),
+            **(self.chips.reset_props() if self.chips else {}),
             **{button: {"variant": "secondary"} for button in self.styles.values()},
         }
 
@@ -126,7 +130,25 @@ def build_create_tab(
         buttons=["download"],
         elem_id="result-image",
     )
-    tab = CreateTab(text, styles, create_button, status, result, rewrite_card, helper_row)
+    chips = (
+        build_chip_row(settings=settings, loc=loc)
+        if features.edit_chips and service.can_edit()
+        else None
+    )
+    tab = CreateTab(text, styles, create_button, status, result, rewrite_card, helper_row, chips)
+    if chips:
+        wire_chips(
+            chips,
+            settings=settings,
+            service=service,
+            loc=loc,
+            session=session,
+            device=device,
+            create_button=create_button,
+            status=status,
+            result=result,
+            api_visibility=api_visibility,
+        )
     wire_helpers(
         helper_row,
         helpers=helpers,
@@ -170,6 +192,15 @@ def build_create_tab(
         current.touch()
         lang = current.lang
         device_id, device_hash = device_identity(device_value)
+        epoch = current.epoch
+        dropped = (  # "New visitor" was tapped meanwhile: the result is not for the next visitor
+            current,
+            device_id,
+            gr.update(interactive=True),
+            gr.update(value="", visible=False),
+            gr.skip(),
+            gr.update(visible=False),
+        )
         yield (
             current,
             device_id,
@@ -189,6 +220,9 @@ def build_create_tab(
             )
             picture = to_pil(made.image)
         except Exception as exc:  # any failure must re-enable the button
+            if current.epoch != epoch:
+                yield dropped
+                return
             if not isinstance(exc, AppError):
                 logger.error("Create callback failed: %s", type(exc).__qualname__)
             message = t(lang, error_message_key(exc))
@@ -203,6 +237,9 @@ def build_create_tab(
                 gr.skip(),
                 gr.update(value=rewrite, visible=True) if rewrite else gr.update(visible=False),
             )
+            return
+        if current.epoch != epoch:
+            yield dropped
             return
         current.set_current(
             GeneratedImage(made.image, made.final_prompt, made.model_key, made.seconds),
@@ -219,12 +256,20 @@ def build_create_tab(
             gr.update(visible=False),
         )
 
-    create_button.click(
+    created = create_button.click(
         on_create,
         [text, device, session],
         [session, device, create_button, status, result, rewrite_card],
         **visibility,
     )
+    if chips:
+
+        def show_chips(current: VisitorSession):
+            return gr.update(visible=current.current is not None)
+
+        created.then(
+            show_chips, [session], [chips.row], queue=False, show_progress="hidden", **visibility
+        )
 
     def on_use_rewrite(suggestion: str, current: VisitorSession):
         current.touch()

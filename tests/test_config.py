@@ -94,11 +94,12 @@ def test_hf_backend_hides_models_without_hf_model(make_settings):
 
     def strip_one(models):
         del models["image_models"]["text_expert"]["hf_model"]
+        del models["edit_models"]["default_edit"]["hf_model"]
 
     settings = make_settings(app=hf, models=strip_one)
     assert "text_expert" not in settings.active_image_models()
     assert settings.hidden_image_models() == ["text_expert"]
-    assert settings.active_edit_model() is None  # placeholder edit model has no hf_model
+    assert settings.active_edit_model() is None  # an edit model without hf_model is unavailable
 
 
 def test_hf_backend_rejects_default_without_hf_model(make_settings):
@@ -147,10 +148,15 @@ def test_placeholder_model_ids_stop_startup(make_settings):
     settings = make_settings(models=placeholder)
     env = dict.fromkeys(settings.required_secrets(), "x")
     assert any("placeholder" in p for p in settings.startup_problems(env))
-    # the edit model is still a placeholder, which matters as soon as the fal backend is used
-    fal = make_settings(app=_fal)
+
+    # an edit model with a placeholder id is caught too
+    def placeholder_edit(models):
+        models["edit_models"]["default_edit"]["hf_model"] = "<verify: edit model>"
+
+    edit = make_settings(models=placeholder_edit)
     assert any(
-        "edit model" in p for p in fal.startup_problems(dict.fromkeys(fal.required_secrets(), "x"))
+        "edit model" in p
+        for p in edit.startup_problems(dict.fromkeys(edit.required_secrets(), "x"))
     )
 
 

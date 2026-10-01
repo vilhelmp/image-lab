@@ -34,6 +34,26 @@ style_fragments:
   comic: "comic book style, bold outlines, bright colors"
   retro: "retro 1970s poster style, warm faded colors"
 
+# One-tap edits under the image. `instruction` is sent to the edit model as it is (English, and the
+# subject must stay recognisable); `llm: true` lets the helper LLM pick the specifics each time.
+# Keys listed in ui.edit_chips appear, in that order.
+edit_chips:
+  evening_light:
+    label: { sv: "Kvällsljus", en: "Evening light" }
+    instruction: "Make it a warm evening scene with golden light. Keep the subject the same."
+  more_playful:
+    label: { sv: "Mer lekfull", en: "More playful" }
+    instruction: "Make it more playful and colorful. Keep the subject the same."
+  new_setting:
+    label: { sv: "Byt miljö", en: "New setting" }
+    llm: true
+  as_painting:
+    label: { sv: "Som målning", en: "As a painting" }
+    instruction: "Turn it into an oil painting. Keep the subject and composition the same."
+  simpler:
+    label: { sv: "Enklare", en: "Simpler" }
+    instruction: "Make it simpler and cleaner, with fewer details and a plain background. Keep the subject the same."
+
 access:
   enabled: true
   expose_api: false # true only while load testing so the Gradio client can call events. Env EXPOSE_API overrides.

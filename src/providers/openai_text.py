@@ -56,7 +56,7 @@ TASK_SCHEMAS: dict[str, dict[str, Any]] = {
     ),
     "improve": _object({"prompt": _STRING}),
     "surprise": _object({"prompt": _STRING}),
-    "edit_instruction": _object({"instruction": _STRING, "new_prompt": _STRING}),
+    "edit_instruction": _object({"instruction": _STRING}),
 }
 
 

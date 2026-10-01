@@ -43,3 +43,10 @@ def test_reset_clears_visitor_state_and_sets_language():
     session.reset("sv", now=5.0)
     assert (session.lang, session.style, session.current, session.history) == ("sv", None, None, [])
     assert not session.dirty and not session.is_idle(1, now=1000.0)
+
+
+def test_reset_bumps_the_epoch_so_work_for_the_previous_visitor_can_be_dropped():
+    session = VisitorSession(lang="sv")
+    before = session.epoch
+    session.reset("sv")
+    assert session.epoch == before + 1

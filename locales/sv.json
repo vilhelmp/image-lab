@@ -21,6 +21,8 @@
   "helper.undo": "Ångra",
   "helper.working": "Tänker…",
   "helper.failed": "Jag kom inte på något just nu. Försök igen!",
+  "edit.working": "AI ändrar din bild…",
+  "edit.refused": "Den ändringen blev inte bra. Prova en annan!",
   "ideas.example_note": "Det här är en exempelbild. Ändra beskrivningen och tryck på Skapa bild för att få din egen.",
   "style.photo": "Foto",
   "style.illustration": "Illustration",

@@ -47,11 +47,15 @@ async def no_sleep(_: float) -> None:
 
 @pytest.fixture
 def edit_settings(make_settings):
-    def with_model(models):
-        models["edit_models"]["default_edit"]["hf_model"] = "black-forest-labs/FLUX.2-klein-4B"
-        models["edit_models"]["default_edit"]["hf_provider"] = "fal-ai"
+    return make_settings()  # default_edit is klein-4B on fal-ai
 
-    return make_settings(models=with_model)
+
+@pytest.fixture
+def no_hf_edit_model(make_settings):
+    def strip(models):
+        del models["edit_models"]["default_edit"]["hf_model"]
+
+    return make_settings(models=strip)
 
 
 def make(settings, client) -> HFEditProvider:
@@ -73,10 +77,9 @@ async def test_edit_sends_the_image_and_instruction_and_returns_png(edit_setting
     assert result.est_cost == edit_settings.models.edit_models["default_edit"].est_cost_usd
 
 
-async def test_a_model_without_hf_model_is_a_provider_error(make_settings):
-    settings = make_settings()  # default_edit has no hf_model yet
+async def test_a_model_without_hf_model_is_a_provider_error(no_hf_edit_model):
     with pytest.raises(ProviderError):
-        await make(settings, StandInClient(Image.new("RGB", (8, 8)))).edit(request())
+        await make(no_hf_edit_model, StandInClient(Image.new("RGB", (8, 8)))).edit(request())
 
 
 async def test_rate_limits_are_retried_and_credit_exhaustion_is_the_budget_error(edit_settings):
@@ -108,8 +111,8 @@ async def test_the_instruction_is_never_logged(edit_settings, caplog):
     assert "neighbour" not in caplog.text and "hf_token" not in caplog.text
 
 
-def test_no_edit_provider_without_an_available_edit_model(make_settings):
-    assert build_edit(make_settings(), {"HF_TOKEN": "hf_x"}) is None
+def test_no_edit_provider_without_an_available_edit_model(no_hf_edit_model):
+    assert build_edit(no_hf_edit_model, {"HF_TOKEN": "hf_x"}) is None
 
 
 def test_the_factory_builds_the_edit_provider_when_a_model_is_configured(edit_settings):

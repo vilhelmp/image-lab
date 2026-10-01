@@ -21,6 +21,8 @@
   "helper.undo": "Undo",
   "helper.working": "Thinking…",
   "helper.failed": "I couldn't come up with anything just now. Try again!",
+  "edit.working": "AI is changing your image…",
+  "edit.refused": "That change didn't work out. Try another one!",
   "ideas.example_note": "This is an example picture. Change the description and tap Create image to get your own.",
   "style.photo": "Photo",
   "style.illustration": "Illustration",

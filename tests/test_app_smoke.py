@@ -1,5 +1,6 @@
 import time
 from collections.abc import Iterator
+from dataclasses import replace
 
 import gradio as gr
 import pytest
@@ -7,6 +8,7 @@ from gradio_client import Client
 
 from app import build_demo
 from src.config import Settings
+from src.providers.fake import FakeModerator
 
 NOOP = {"__type__": "update"}
 
@@ -16,6 +18,31 @@ def client(dev_settings: Settings, fake_providers) -> Iterator[Client]:
     dev_settings.config.ui.idle_reset_seconds = 1
     dev_settings.config.access.expose_api = True
     demo = build_demo(dev_settings, fake_providers)
+    demo.launch(prevent_thread_lock=True, quiet=True)
+    try:
+        yield Client(demo.local_url, verbose=False)
+    finally:
+        demo.close()
+
+
+class FlagsImagesAfterTheFirst(FakeModerator):
+    """Clean for the first image (Create), then flags every image (the edit output)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.images = 0
+
+    async def moderate_image(self, image: bytes):
+        self.images += 1
+        self.flag_images = self.images > 1
+        return await super().moderate_image(image)
+
+
+@pytest.fixture
+def refusing_client(dev_settings: Settings, fake_providers) -> Iterator[Client]:
+    dev_settings.config.access.expose_api = True
+    providers = replace(fake_providers, moderator=FlagsImagesAfterTheFirst())
+    demo = build_demo(dev_settings, providers)
     demo.launch(prevent_thread_lock=True, quiet=True)
     try:
         yield Client(demo.local_url, verbose=False)
@@ -78,6 +105,25 @@ def test_typing_after_help_me_drops_the_undo(client: Client):
 def test_an_unknown_language_is_rejected_by_the_framework(client: Client):
     with pytest.raises(Exception, match="not in the list of choices"):
         client.predict("xx", api_name="/on_language")
+
+
+def test_a_chip_edits_the_current_image(client: Client):
+    _, _, created = client.predict("A cat", None, api_name="/on_create")
+    device, status, edited = client.predict(None, api_name="/on_chip_evening_light")
+    assert status["visible"] is False
+    assert edited["value"] and edited["value"] != created["value"]
+
+
+def test_a_refused_edit_keeps_the_image_and_shows_a_friendly_message(refusing_client: Client):
+    refusing_client.predict("A cat", None, api_name="/on_create")
+    _, status, edited = refusing_client.predict(None, api_name="/on_chip_evening_light")
+    assert status["value"] == "Den ändringen blev inte bra. Prova en annan!"
+    assert not edited.get("value")  # the image area is untouched
+
+
+def test_a_chip_without_an_image_does_nothing(client: Client):
+    result = client.predict(None, api_name="/on_chip_as_painting")
+    assert all(not (isinstance(part, dict) and part.get("value")) for part in result)
 
 
 def test_empty_idea_shows_friendly_message(client: Client):

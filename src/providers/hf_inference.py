@@ -18,6 +18,7 @@ from typing import Any
 import httpx
 from huggingface_hub import InferenceClient
 from huggingface_hub.errors import HfHubHTTPError, InferenceTimeoutError
+from PIL import Image
 
 from src.config import Settings
 from src.errors import BudgetReachedError, ProviderError, ProviderTimeoutError, RateLimitedError
@@ -173,11 +174,18 @@ class HFEditProvider(EditProvider):
         if not model.hf_model:
             raise ProviderError  # config error: the model has no hf_model
         started = time.monotonic()
+        try:  # the current image may be a webp example; providers reliably take PNG
+            source = await asyncio.to_thread(_to_png, Image.open(io.BytesIO(req.image)))
+        except Exception as exc:
+            logger.error(
+                "hf edit %s: unusable source image (%s)", req.model_key, type(exc).__qualname__
+            )
+            raise ProviderError from None
         png = await self._runner.png(
             f"hf edit {req.model_key}",
             model.hf_provider,
             "image_to_image",
-            req.image,
+            source,
             prompt=req.instruction,
             model=model.hf_model,
             extra_body=safety_extra(model.hf_provider),

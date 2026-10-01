@@ -23,7 +23,7 @@ from src.config import ENV_FILE_KEYS, load_env_file, load_settings
 from src.errors import AppError, SafetyRefusalError
 from src.logging_setup import configure_logging
 from src.providers.factory import build_providers
-from src.services.generation import CreateRequest, GenerationService
+from src.services.generation import ChipRequest, CreateRequest, GenerationService
 from src.services.helpers import HelperService
 from src.services.library import load_library, load_lock
 from src.services.limits import LimitService
@@ -104,9 +104,11 @@ async def main() -> int:
     providers = build_providers(settings)
     limits = LimitService(settings.config.limits)
     library = load_library(settings).with_images(load_lock())
-    service = GenerationService(settings, providers, limits, library)
     helpers = HelperService(settings, providers, limits, library)
-    example = library.prompts()[0].text["en"]
+    service = GenerationService(settings, providers, limits, library, helpers)
+    first = library.prompts()[0]
+    example = first.text["en"]
+    example_image = library.image_path(first).read_bytes()
 
     run = Run()
     run.sensitive += [NEW_IDEA, SWEDISH_IDEA, *REFUSED_IDEAS.values()]
@@ -120,6 +122,22 @@ async def main() -> int:
     await run.step("library example, unchanged", create(example, "d2"), "ok")
     for label, idea in REFUSED_IDEAS.items():
         await run.step(f"refused: {label}", create(idea, f"r-{label}"), "refused")
+
+    print("\nEdit chips")
+
+    def chip(key: str, device: str):
+        return service.edit(
+            ChipRequest(
+                chip_key=key,
+                image=example_image,
+                current_prompt=example,
+                lang="en",
+                device_hash=device,
+            )
+        )
+
+    await run.step("edit chip: evening light", chip("evening_light", "e1"), "ok")
+    await run.step("edit chip: new setting (LLM)", chip("new_setting", "e2"), "ok")
 
     print("\nHelpers")
     await run.step("help me (sv)", helpers.improve(SWEDISH_IDEA, "sv", "h1"), "ok")

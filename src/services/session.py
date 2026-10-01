@@ -25,6 +25,7 @@ class VisitorSession:
     undo_text: str | None = field(
         default=None, repr=False
     )  # the text before Help me or Surprise me
+    epoch: int = 0  # bumped by reset(), so work started for the previous visitor is dropped
 
     def touch(self, now: float | None = None) -> None:
         self.last_interaction = time.monotonic() if now is None else now
@@ -47,5 +48,6 @@ class VisitorSession:
         self.current = None
         self.history = []
         self.undo_text = None
+        self.epoch += 1
         self.dirty = False
         self.last_interaction = time.monotonic() if now is None else now

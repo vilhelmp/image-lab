@@ -74,15 +74,20 @@ class FakeImageProvider(ImageProvider):
 
 
 class FakeEditProvider(EditProvider):
-    def __init__(self, delay: float = 0.0, cost: float = 0.0) -> None:
+    def __init__(
+        self, delay: float = 0.0, cost: float = 0.0, error: Exception | None = None
+    ) -> None:
         self.delay = delay
         self.cost = cost
+        self.error = error
         self.calls: list[EditRequest] = []
 
     async def edit(self, req: EditRequest) -> ImageResult:
         self.calls.append(req)
         started = time.perf_counter()
         await asyncio.sleep(self.delay)
+        if self.error:
+            raise self.error
         image = Image.open(io.BytesIO(req.image)).convert("RGB")
         tint = Image.new("RGB", image.size, _color_for(req.instruction))
         image = Image.blend(image, tint, 0.35)
@@ -103,7 +108,7 @@ class FakeTextProvider(TextProvider):
         self.responses = responses or {
             "improve": {"prompt": "A friendly scene with soft evening light"},
             "surprise": {"prompt": "A whale reading a book on a Swedish island"},
-            "edit_instruction": {"instruction": "Change the setting", "new_prompt": "A new scene"},
+            "edit_instruction": {"instruction": "Move the subject to a new setting"},
         }
         self.calls: list[str] = []
 

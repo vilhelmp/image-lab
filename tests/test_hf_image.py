@@ -19,7 +19,7 @@ from src.errors import (
 )
 from src.providers.base import ImageRequest
 from src.providers.factory import build_image, build_providers
-from src.providers.hf_inference import SIZES, HFImageProvider
+from src.providers.hf_inference import SIZES, HFEditProvider, HFImageProvider
 
 SECRET_PROMPT = "a very private prompt about my neighbour"
 
@@ -239,4 +239,4 @@ def test_build_providers_wires_real_adapters_outside_development(make_settings):
     settings = make_settings(app=real)
     providers = build_providers(settings, {"HF_TOKEN": "hf_x", "OPENAI_API_KEY": "sk-x"})
     assert isinstance(providers.image, HFImageProvider)
-    assert providers.edit is None
+    assert isinstance(providers.edit, HFEditProvider)
