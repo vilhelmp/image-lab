@@ -18,17 +18,6 @@ from src.ui.components import ApiVisibility, Block, Localizer, Updates, build_he
 
 logger = logging.getLogger(__name__)
 
-# Client-side only: the image is already in the browser, so saving needs no server round trip.
-SAVE_JS = """() => {
-  const img = document.querySelector('#result-image img');
-  if (!img) return;
-  const link = document.createElement('a');
-  link.href = img.src;
-  link.download = 'ai-image.png';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-}"""
 HOW_JS = "() => document.querySelectorAll('[role=\"tab\"]')[1]?.click()"
 
 
@@ -55,12 +44,6 @@ def build_chip_row(*, settings: Settings, loc: Localizer) -> ChipRow:
     t = loc.t
     with gr.Column(visible=False, elem_id="chip-panel") as panel:
         with gr.Row(elem_id="image-actions"):
-            save = loc.make(
-                gr.Button,
-                lambda lang: {"value": t(lang, "chips.save")},
-                variant="secondary",
-                elem_classes=["swap-button"],
-            )
             swap = loc.make(
                 gr.Button,
                 lambda lang: {"value": t(lang, "chips.swap")},
@@ -85,7 +68,6 @@ def build_chip_row(*, settings: Settings, loc: Localizer) -> ChipRow:
             variant="secondary",
             elem_classes=["swap-button"],
         )
-    save.click(fn=None, js=SAVE_JS)
     how.click(fn=None, js=HOW_JS)
     return ChipRow(panel, buttons, swap)
 

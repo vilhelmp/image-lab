@@ -33,7 +33,6 @@
   "chips.swap": "Växla före / efter",
   "chips.heading": "Ändra din bild",
   "chips.hint": "Tryck så ändrar AI din bild.",
-  "chips.save": "Spara bild",
   "chips.how": "Så skapades bilden",
   "edit.done": "Ändrad: {chip}",
   "create.result_empty": "Din bild visas här",
