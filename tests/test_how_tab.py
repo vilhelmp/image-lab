@@ -14,12 +14,9 @@ def test_the_pipeline_has_a_box_and_a_caption_for_every_step(lang):
     assert all(kind in KINDS for _, kind in STEPS)
 
 
-def test_the_edit_chips_start_disabled_and_the_old_accordion_is_gone(dev_settings, fake_providers):
+def test_the_edit_chips_start_hidden_and_the_old_accordion_is_gone(dev_settings, fake_providers):
     config = build_demo(dev_settings, fake_providers).get_config_file()
     components = config["components"]
-    chip_labels = {chip.label["sv"] for chip in dev_settings.config.edit_chips.values()}
-    chips = [
-        c for c in components if c["type"] == "button" and c["props"].get("value") in chip_labels
-    ]
-    assert chips and all(c["props"]["interactive"] is False for c in chips)
+    panel = next(c for c in components if c["props"].get("elem_id") == "chip-panel")
+    assert panel["props"]["visible"] is False
     assert not any(c["type"] == "accordion" for c in components)

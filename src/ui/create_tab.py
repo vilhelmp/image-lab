@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 import time
 from collections.abc import Callable
@@ -94,9 +95,15 @@ def build_create_tab(
                     "label": t(lang, "create.label"),
                     "placeholder": placeholders(lang)[0],
                 },
-                lines=2,
+                lines=3,
                 max_length=settings.config.safety.max_input_chars,
                 elem_id="idea-box",
+            )
+            create_button = loc.make(
+                gr.Button,
+                lambda lang: {"value": t(lang, "create.button")},
+                variant="primary",
+                elem_classes=["primary-action"],
             )
             helper_row = build_helper_row(
                 loc=loc,
@@ -118,17 +125,6 @@ def build_create_tab(
                     )
                     for key in ui.styles
                 }
-            create_button = loc.make(
-                gr.Button,
-                lambda lang: {"value": t(lang, "create.button")},
-                variant="primary",
-                elem_classes=["primary-action"],
-            )
-            with gr.Column(elem_id="status-slot"):  # reserved, so a message moves nothing
-                status = gr.Markdown(visible=False, elem_classes=["status-card"])
-                rewrite_card = gr.Button(
-                    visible=False, variant="secondary", elem_classes=["rewrite-card"]
-                )
         with gr.Column(scale=1, min_width=340, elem_id="result-col"):
             with gr.Column(elem_id="result-wrap"):
                 result = loc.make(
@@ -140,6 +136,19 @@ def build_create_tab(
                     elem_id="result-image",
                 )
                 build_busy_overlay(loc)
+                loc.make(
+                    gr.HTML,
+                    lambda lang: {
+                        "value": f'<div class="result-hint">'
+                        f"{html.escape(t(lang, 'create.result_empty'))}</div>"
+                    },
+                    elem_id="result-hint",
+                )
+            with gr.Column(elem_id="status-slot"):  # reserved, so a message moves nothing
+                status = gr.Markdown(visible=False, elem_classes=["status-card"])
+                rewrite_card = gr.Button(
+                    visible=False, variant="secondary", elem_classes=["rewrite-card"]
+                )
             chips = (
                 build_chip_row(settings=settings, loc=loc)
                 if features.edit_chips and service.can_edit()
@@ -276,15 +285,15 @@ def build_create_tab(
     if chips:
 
         def show_chips(current: VisitorSession):
-            return [
-                *[gr.update(interactive=current.current is not None)] * len(chips.buttons),
-                gr.update(interactive=current.previous is not None),
-            ]
+            return (
+                gr.update(visible=current.current is not None),
+                gr.update(visible=current.previous is not None),
+            )
 
         created.then(
             show_chips,
             [session],
-            [*chips.buttons.values(), chips.swap],
+            [chips.panel, chips.swap],
             queue=False,
             show_progress="hidden",
             **visibility,

@@ -110,7 +110,7 @@ def test_an_unknown_language_is_rejected_by_the_framework(client: Client):
 def test_a_chip_edits_the_current_image(client: Client):
     _, _, created = client.predict("A cat", None, api_name="/on_create")
     device, status, edited = client.predict(None, api_name="/on_chip_evening_light")
-    assert status["visible"] is False
+    assert status["visible"] is True and status["value"] == "Ändrad: Kvällsljus"
     assert edited["value"] and edited["value"] != created["value"]
 
 
@@ -150,11 +150,12 @@ def test_idle_reset_only_fires_after_interaction_and_idle_time(client: Client):
 def test_swap_toggles_between_the_image_before_and_after_a_chip(client: Client):
     client.predict("A cat", None, api_name="/on_create")
     _, _, edited = client.predict(None, api_name="/on_chip_evening_light")
-    original = client.predict(api_name="/on_swap")
+    original, status = client.predict(api_name="/on_swap")
     assert original["value"] != edited["value"]
-    assert client.predict(api_name="/on_swap")["value"] != original["value"]
+    assert status["visible"] is False  # "Changed: ..." no longer describes what is shown
+    assert client.predict(api_name="/on_swap")[0]["value"] != original["value"]
 
 
 def test_swap_without_an_edit_does_nothing(client: Client):
     client.predict("A cat", None, api_name="/on_create")
-    assert client.predict(api_name="/on_swap") == NOOP
+    assert client.predict(api_name="/on_swap") == (NOOP, NOOP)

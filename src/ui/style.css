@@ -1,6 +1,7 @@
 /* Tap targets are at least 48px for iPad use. */
 .gradio-container {
   max-width: 960px !important;
+  width: 100% !important;
   margin: 0 auto;
 }
 
@@ -10,12 +11,90 @@ button {
 
 #header {
   align-items: center;
+  flex-wrap: nowrap;
 }
 
-.lang-toggle label {
-  min-height: 48px;
+#header-tools {
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+/* Header buttons are 44px tall (Apple's minimum tap size) so they stay small. */
+#lang-button,
+#theme-button {
+  flex: 0 0 auto !important;
+  min-width: 56px !important;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+#lang-toggle {
+  display: none;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+#lang-toggle.open {
+  display: block;
+}
+
+#lang-toggle label {
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
+}
+
+#idea-box textarea {
+  font-size: 1.3rem;
+  line-height: 1.4;
+}
+
+#idea-box label span {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+#image-actions {
+  gap: 8px;
+}
+
+#chip-panel {
+  gap: 8px;
+}
+
+#new-visitor-confirm {
+  display: none;
+  gap: 8px;
+}
+
+#new-visitor-confirm.open {
+  display: flex;
+}
+
+/* The empty frame says what it is for; it disappears when an image arrives. */
+#result-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 28px;
+  pointer-events: none;
+  background: transparent;
+  border: 0;
+  font-size: 1.15rem;
+  opacity: 0.75;
+}
+
+#result-wrap:has(#result-image img) #result-hint {
+  display: none;
+}
+
+.style-tile.primary::before {
+  content: "\2713  ";
 }
 
 #create-layout {
@@ -35,7 +114,7 @@ button {
 }
 
 #status-slot {
-  min-height: 80px;
+  min-height: 56px;
 }
 
 #style-row {
@@ -185,7 +264,9 @@ button {
 .ideas-button,
 .helper-button {
   min-height: 48px;
-  flex: 1 1 140px;
+  flex: 1 1 100px;
+  padding: 0 8px;
+  font-size: 1rem;
 }
 
 /* The ideas popup: a fixed overlay, so it needs no modal component. */

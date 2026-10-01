@@ -18,43 +18,76 @@ from src.ui.components import ApiVisibility, Block, Localizer, Updates, build_he
 
 logger = logging.getLogger(__name__)
 
+# Client-side only: the image is already in the browser, so saving needs no server round trip.
+SAVE_JS = """() => {
+  const img = document.querySelector('#result-image img');
+  if (!img) return;
+  const link = document.createElement('a');
+  link.href = img.src;
+  link.download = 'ai-image.png';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}"""
+HOW_JS = "() => document.querySelectorAll('[role=\"tab\"]')[1]?.click()"
+
 
 @dataclass
 class ChipRow:
-    row: gr.Row
+    panel: gr.Column
     buttons: dict[str, gr.Button]
     swap: gr.Button
 
     @property
     def managed(self) -> list[Block]:
-        return [self.row, self.swap, *self.buttons.values()]
+        return [self.panel, self.swap, *self.buttons.values()]
 
     def reset_props(self) -> Updates:
-        return {button: {"interactive": False} for button in [self.swap, *self.buttons.values()]}
+        return {
+            self.panel: {"visible": False},
+            self.swap: {"visible": False, "interactive": True},
+            **{button: {"interactive": True} for button in self.buttons.values()},
+        }
 
 
 def build_chip_row(*, settings: Settings, loc: Localizer) -> ChipRow:
     chips = settings.config.edit_chips
-    swap = loc.make(
-        gr.Button,
-        lambda lang: {"value": loc.t(lang, "chips.swap")},
-        variant="secondary",
-        elem_classes=["swap-button"],
-        interactive=False,
-    )
-    build_heading(loc, "chips.heading", "chips.hint")
-    with gr.Row(elem_id="chip-row") as row:
-        buttons = {
-            key: loc.make(
+    t = loc.t
+    with gr.Column(visible=False, elem_id="chip-panel") as panel:
+        with gr.Row(elem_id="image-actions"):
+            save = loc.make(
                 gr.Button,
-                lambda lang, key=key: {"value": chips[key].label[lang]},
+                lambda lang: {"value": t(lang, "chips.save")},
                 variant="secondary",
-                elem_classes=["chip-button"],
-                interactive=False,
+                elem_classes=["swap-button"],
             )
-            for key in settings.config.ui.edit_chips
-        }
-    return ChipRow(row, buttons, swap)
+            swap = loc.make(
+                gr.Button,
+                lambda lang: {"value": t(lang, "chips.swap")},
+                variant="secondary",
+                elem_classes=["swap-button"],
+                visible=False,
+            )
+        build_heading(loc, "chips.heading", "chips.hint")
+        with gr.Row(elem_id="chip-row"):
+            buttons = {
+                key: loc.make(
+                    gr.Button,
+                    lambda lang, key=key: {"value": chips[key].label[lang]},
+                    variant="secondary",
+                    elem_classes=["chip-button"],
+                )
+                for key in settings.config.ui.edit_chips
+            }
+        how = loc.make(
+            gr.Button,
+            lambda lang: {"value": t(lang, "chips.how")},
+            variant="secondary",
+            elem_classes=["swap-button"],
+        )
+    save.click(fn=None, js=SAVE_JS)
+    how.click(fn=None, js=HOW_JS)
+    return ChipRow(panel, buttons, swap)
 
 
 def wire_chips(
@@ -76,6 +109,8 @@ def wire_chips(
     count = len(chips.buttons)
 
     def handler(key: str):
+        chip_label = settings.config.edit_chips[key].label
+
         async def on_chip(device_value: Any, current: VisitorSession):
             current.touch()
             lang = current.lang
@@ -114,13 +149,12 @@ def wire_chips(
                 error = exc
             if current.epoch != epoch:
                 # "New visitor" was tapped meanwhile: the result belongs to the previous visitor.
-                off = gr.update(interactive=False)
                 yield (
                     current,
                     device_id,
                     ready,
-                    *[off] * count,
-                    off,
+                    *[ready] * count,
+                    gr.update(visible=False, interactive=True),
                     gr.update(value="", visible=False),
                     gr.skip(),
                 )
@@ -136,7 +170,7 @@ def wire_chips(
                     device_id,
                     ready,
                     *[ready] * count,
-                    gr.update(interactive=current.previous is not None),
+                    gr.update(visible=current.previous is not None, interactive=True),
                     gr.update(value=message, visible=True),
                     gr.skip(),
                 )
@@ -150,8 +184,8 @@ def wire_chips(
                 device_id,
                 ready,
                 *[ready] * count,
-                ready,
-                gr.update(value="", visible=False),
+                gr.update(visible=True, interactive=True),
+                gr.update(value=t(lang, "edit.done", chip=chip_label[lang]), visible=True),
                 gr.update(value=picture, visible=True),
             )
 
@@ -170,14 +204,18 @@ def wire_chips(
     def on_swap(current: VisitorSession):
         current.touch()
         if not current.swap():
-            return current, gr.skip()
+            return current, gr.skip(), gr.skip()
         assert current.current is not None
-        return current, gr.update(value=to_pil(current.current.image), visible=True)
+        return (
+            current,
+            gr.update(value=to_pil(current.current.image), visible=True),
+            gr.update(value="", visible=False),
+        )
 
     chips.swap.click(
         on_swap,
         [session],
-        [session, result],
+        [session, result, status],
         queue=False,
         show_progress="hidden",
         api_visibility=api_visibility,

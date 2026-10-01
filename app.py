@@ -64,6 +64,29 @@ ZOOM_JS = """() => {
   });
 }"""
 SCROLL_TOP_JS = "() => window.scrollTo(0, 0)"
+# Enter in the idea box creates the picture; Shift+Enter adds a new line.
+ENTER_JS = """() => {
+  if (window.__enterReady) return;
+  window.__enterReady = true;
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+    if (!e.target.matches('#idea-box textarea')) return;
+    e.preventDefault();
+    document.querySelector('.primary-action')?.click();
+  });
+}"""
+
+
+def _open_class_js(element_id: str, action: str) -> str:
+    return f"document.getElementById('{element_id}')?.classList.{action}('open')"
+
+
+TOGGLE_LANG_JS = "() => " + _open_class_js("lang-toggle", "toggle")
+CLOSE_LANG_JS = "(...args) => { " + _open_class_js("lang-toggle", "remove") + "; return args; }"
+TOGGLE_CONFIRM_JS = "() => " + _open_class_js("new-visitor-confirm", "toggle")
+CLOSE_CONFIRM_JS = (
+    "(...args) => { " + _open_class_js("new-visitor-confirm", "remove") + "; return args; }"
+)
 DEVICE_STORAGE_KEY = "ai-image-lab-device"
 
 
@@ -103,19 +126,28 @@ def build_demo(
                     gr.Markdown,
                     lambda lang: {"value": f"# {t(lang, 'app.title')}\n{t(lang, 'app.subtitle')}"},
                 )
-            with gr.Column(scale=2):
-                lang_toggle = gr.Radio(
-                    choices=[(i18n.native_name(code), code) for code in cfg.app.languages],
-                    value=default_lang,
-                    show_label=False,
-                    container=False,
-                    elem_classes=["lang-toggle"],
-                )
-                theme_button = loc.make(
-                    gr.Button,
-                    lambda lang: {"value": t(lang, "theme.toggle")},
-                    size="sm",
-                )
+            with gr.Column(scale=1, min_width=160):
+                with gr.Row(elem_id="header-tools"):
+                    lang_button = loc.make(
+                        gr.Button,
+                        lambda lang: {"value": lang.upper()},
+                        size="sm",
+                        elem_id="lang-button",
+                    )
+                    lang_toggle = gr.Radio(
+                        choices=[(i18n.native_name(code), code) for code in cfg.app.languages],
+                        value=default_lang,
+                        label="Språk / Language",
+                        show_label=False,
+                        container=False,
+                        elem_id="lang-toggle",
+                    )
+                    theme_button = loc.make(
+                        gr.Button,
+                        lambda lang: {"value": t(lang, "theme.toggle")},
+                        size="sm",
+                        elem_id="theme-button",
+                    )
 
         with gr.Tabs(selected="create") as tabs:
             with loc.make(gr.Tab, lambda lang: {"label": t(lang, "tab.create")}, id="create"):
@@ -148,6 +180,18 @@ def build_demo(
             lambda lang: {"value": t(lang, "footer.new_visitor")},
             elem_classes=["new-visitor"],
         )
+        with gr.Row(elem_id="new-visitor-confirm"):  # shown by the button above, so no accidents
+            confirm_yes = loc.make(
+                gr.Button,
+                lambda lang: {"value": t(lang, "footer.new_visitor_yes")},
+                variant="stop",
+                elem_classes=["new-visitor"],
+            )
+            confirm_no = loc.make(
+                gr.Button,
+                lambda lang: {"value": t(lang, "footer.cancel")},
+                elem_classes=["new-visitor"],
+            )
 
         managed = list(dict.fromkeys([*loc.components, *create.managed]))
         outputs = [session, lang_toggle, tabs, *managed]
@@ -173,22 +217,27 @@ def build_demo(
             current.touch()
             return [current, *pack(loc.components, loc.props(lang))]
 
-        new_visitor.click(reset, [session], outputs, show_progress="hidden", **visibility).then(
-            fn=None, js=SCROLL_TOP_JS
-        )
+        new_visitor.click(fn=None, js=TOGGLE_CONFIRM_JS)
+        confirm_no.click(fn=None, js=CLOSE_CONFIRM_JS)
+        confirm_yes.click(
+            reset, [session], outputs, js=CLOSE_CONFIRM_JS, show_progress="hidden", **visibility
+        ).then(fn=None, js=SCROLL_TOP_JS)
         gr.Timer(IDLE_CHECK_SECONDS).tick(
             on_idle, [session], outputs, show_progress="hidden", **visibility
         )
+        lang_button.click(fn=None, js=TOGGLE_LANG_JS)
         lang_toggle.input(
             on_language,
             [lang_toggle, session],
             [session, *loc.components],
+            js=CLOSE_LANG_JS,
             queue=False,
             show_progress="hidden",
             **visibility,
         )
         theme_button.click(fn=None, js=TOGGLE_DARK_JS)
         demo.load(fn=None, js=ZOOM_JS)
+        demo.load(fn=None, js=ENTER_JS)
 
         if cfg.app.default_theme != "system":
             action = "add" if cfg.app.default_theme == "dark" else "remove"
