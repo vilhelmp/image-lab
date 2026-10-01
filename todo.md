@@ -139,7 +139,7 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [ ] Hosting decision from Phase 1b still holds (free ZeroGPU, or PRO with the Space switched to CPU Basic)
 - [ ] Prepaid credits loaded, auto-recharge off
 - [ ] Fal vs HF backend comparison on the same 20 prompts; backend chosen
-- [ ] Swedish prompt quality tested per model; translation decided
+- [x] Swedish prompt quality: translation to English is on for all image models (a Swedish fox prompt gave no fox); re-check on the Space after deploy
 - [ ] Five devices doing Compare for 10 minutes; admin tab watched
 - [ ] Incognito browser blocked without password
 - [ ] AirDrop tested (and QR if enabled)

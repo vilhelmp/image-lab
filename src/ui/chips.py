@@ -14,7 +14,7 @@ from src.services.generation import ChipRequest, GenerationService
 from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
 from src.ui.busy import start_js
-from src.ui.components import ApiVisibility, Block, Localizer, Updates, to_pil
+from src.ui.components import ApiVisibility, Block, Localizer, Updates, build_heading, to_pil
 
 logger = logging.getLogger(__name__)
 
@@ -29,21 +29,20 @@ class ChipRow:
         return [self.row, *self.buttons.values()]
 
     def reset_props(self) -> Updates:
-        return {
-            self.row: {"visible": False},
-            **{button: {"interactive": True} for button in self.buttons.values()},
-        }
+        return {button: {"interactive": False} for button in self.buttons.values()}
 
 
 def build_chip_row(*, settings: Settings, loc: Localizer) -> ChipRow:
     chips = settings.config.edit_chips
-    with gr.Row(visible=False, elem_id="chip-row") as row:
+    build_heading(loc, "chips.heading", "chips.hint")
+    with gr.Row(elem_id="chip-row") as row:
         buttons = {
             key: loc.make(
                 gr.Button,
                 lambda lang, key=key: {"value": chips[key].label[lang]},
                 variant="secondary",
                 elem_classes=["chip-button"],
+                interactive=False,
             )
             for key in settings.config.ui.edit_chips
         }
@@ -106,11 +105,12 @@ def wire_chips(
                 error = exc
             if current.epoch != epoch:
                 # "New visitor" was tapped meanwhile: the result belongs to the previous visitor.
+                off = gr.update(interactive=False)
                 yield (
                     current,
                     device_id,
                     ready,
-                    *[ready] * count,
+                    *[off] * count,
                     gr.update(value="", visible=False),
                     gr.skip(),
                 )

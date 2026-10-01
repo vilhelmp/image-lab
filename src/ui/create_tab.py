@@ -19,7 +19,7 @@ from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
 from src.ui.busy import build_busy_overlay, start_js
 from src.ui.chips import ChipRow, build_chip_row, wire_chips
-from src.ui.components import ApiVisibility, Block, Localizer, Updates, to_pil
+from src.ui.components import ApiVisibility, Block, Localizer, Updates, build_heading, to_pil
 from src.ui.helper_row import HelperRow, build_helper_row, wire_helpers
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ class CreateTab:
             self.text: {"value": ""},
             self.create_button: {"interactive": True},
             self.status: {"value": "", "visible": False},
-            self.result: {"value": None, "visible": False},
+            self.result: {"value": None},
             self.rewrite_card: {"value": "", "visible": False},
             **self.helper_row.reset_props(),
             **(self.chips.reset_props() if self.chips else {}),
@@ -86,58 +86,65 @@ def build_create_tab(
     def placeholders(lang: str) -> list[str]:
         return [ui.challenge[lang], *(t(lang, key) for key in PLACEHOLDER_KEYS)]
 
-    text = loc.make(
-        gr.Textbox,
-        lambda lang: {"label": t(lang, "create.label"), "placeholder": placeholders(lang)[0]},
-        lines=2,
-        max_length=settings.config.safety.max_input_chars,
-        elem_id="idea-box",
-    )
-    helper_row = build_helper_row(
-        loc=loc,
-        text=text,
-        session=session,
-        api_visibility=api_visibility,
-        library=library,
-        help_me=features.help_me,
-        surprise_me=features.surprise_me,
-    )
-
-    with gr.Row(elem_id="style-row"):
-        styles: dict[str, gr.Button] = {
-            key: loc.make(
-                gr.Button,
-                lambda lang, key=key: {"value": t(lang, f"style.{key}")},
-                variant="secondary",
-                elem_classes=["style-tile"],
+    with gr.Row(elem_id="create-layout", equal_height=False):
+        with gr.Column(scale=1, min_width=340, elem_id="controls-col"):
+            text = loc.make(
+                gr.Textbox,
+                lambda lang: {
+                    "label": t(lang, "create.label"),
+                    "placeholder": placeholders(lang)[0],
+                },
+                lines=2,
+                max_length=settings.config.safety.max_input_chars,
+                elem_id="idea-box",
             )
-            for key in ui.styles
-        }
-
-    create_button = loc.make(
-        gr.Button,
-        lambda lang: {"value": t(lang, "create.button")},
-        variant="primary",
-        elem_classes=["primary-action"],
-    )
-    status = gr.Markdown(visible=False, elem_classes=["status-card"])
-    rewrite_card = gr.Button(visible=False, variant="secondary", elem_classes=["rewrite-card"])
-    with gr.Column(elem_id="result-wrap"):
-        result = loc.make(
-            gr.Image,
-            lambda lang: {"label": t(lang, "create.result_label")},
-            visible=False,
-            interactive=False,
-            format="png",
-            buttons=["download"],
-            elem_id="result-image",
-        )
-        build_busy_overlay(loc)
-    chips = (
-        build_chip_row(settings=settings, loc=loc)
-        if features.edit_chips and service.can_edit()
-        else None
-    )
+            helper_row = build_helper_row(
+                loc=loc,
+                text=text,
+                session=session,
+                api_visibility=api_visibility,
+                library=library,
+                help_me=features.help_me,
+                surprise_me=features.surprise_me,
+            )
+            build_heading(loc, "style.heading", "style.hint")
+            with gr.Row(elem_id="style-row"):
+                styles: dict[str, gr.Button] = {
+                    key: loc.make(
+                        gr.Button,
+                        lambda lang, key=key: {"value": t(lang, f"style.{key}")},
+                        variant="secondary",
+                        elem_classes=["style-tile"],
+                    )
+                    for key in ui.styles
+                }
+            create_button = loc.make(
+                gr.Button,
+                lambda lang: {"value": t(lang, "create.button")},
+                variant="primary",
+                elem_classes=["primary-action"],
+            )
+            with gr.Column(elem_id="status-slot"):  # reserved, so a message moves nothing
+                status = gr.Markdown(visible=False, elem_classes=["status-card"])
+                rewrite_card = gr.Button(
+                    visible=False, variant="secondary", elem_classes=["rewrite-card"]
+                )
+        with gr.Column(scale=1, min_width=340, elem_id="result-col"):
+            with gr.Column(elem_id="result-wrap"):
+                result = loc.make(
+                    gr.Image,
+                    lambda lang: {"label": t(lang, "create.result_label")},
+                    interactive=False,
+                    format="png",
+                    buttons=["download"],
+                    elem_id="result-image",
+                )
+                build_busy_overlay(loc)
+            chips = (
+                build_chip_row(settings=settings, loc=loc)
+                if features.edit_chips and service.can_edit()
+                else None
+            )
     tab = CreateTab(text, styles, create_button, status, result, rewrite_card, helper_row, chips)
     if chips:
         wire_chips(
@@ -269,10 +276,15 @@ def build_create_tab(
     if chips:
 
         def show_chips(current: VisitorSession):
-            return gr.update(visible=current.current is not None)
+            return [gr.update(interactive=current.current is not None)] * len(chips.buttons)
 
         created.then(
-            show_chips, [session], [chips.row], queue=False, show_progress="hidden", **visibility
+            show_chips,
+            [session],
+            list(chips.buttons.values()),
+            queue=False,
+            show_progress="hidden",
+            **visibility,
         )
 
     def on_use_rewrite(suggestion: str, current: VisitorSession):

@@ -59,7 +59,7 @@ def test_app_builds_with_fakes(dev_settings: Settings, fake_providers):
         if isinstance(value := c.get("props", {}).get("value"), str)
     }
     assert "Skapa bild" in labels
-    assert "Behöver du idéer?" in labels
+    assert "Se exempel" in labels
 
 
 def test_create_completes_with_fakes(client: Client):

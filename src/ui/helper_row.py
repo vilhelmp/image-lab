@@ -21,7 +21,7 @@ from src.services.helpers import HelperService
 from src.services.library import PromptLibrary
 from src.services.limits import device_identity
 from src.services.session import VisitorSession
-from src.ui.components import ApiVisibility, Block, Localizer, Updates
+from src.ui.components import ApiVisibility, Block, Localizer, Updates, build_heading
 from src.ui.ideas import IdeasPanel, build_ideas
 
 logger = logging.getLogger(__name__)
@@ -69,6 +69,7 @@ def build_helper_row(
             **props,
         )
 
+    build_heading(loc, "helper.heading", "helper.hint")
     with gr.Row(elem_id="helper-row"):
         ideas = (
             build_ideas(

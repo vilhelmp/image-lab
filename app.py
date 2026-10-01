@@ -21,6 +21,7 @@ from src.services.session import VisitorSession
 from src.ui.admin_tab import build_admin_tab
 from src.ui.components import ApiVisibility, Localizer, merge, pack
 from src.ui.create_tab import build_create_tab
+from src.ui.how_tab import build_how_tab
 from src.ui.theme import build_theme, load_css
 
 logger = logging.getLogger(__name__)
@@ -128,6 +129,7 @@ def build_demo(
                     api_visibility=api_visibility,
                     library=library,
                 )
+            build_how_tab(loc=loc, session=session, api_visibility=api_visibility, touch=touch)
             build_admin_tab(
                 demo=demo,
                 limits=limits,
@@ -141,15 +143,6 @@ def build_demo(
             lambda lang: {"value": t(lang, "footer.privacy")},
             elem_classes=["privacy-line"],
         )
-        with loc.make(
-            gr.Accordion, lambda lang: {"label": t(lang, "how.title")}, open=False
-        ) as how:
-            loc.make(
-                gr.Markdown,
-                lambda lang: {
-                    "value": "\n".join(f"{i}. {t(lang, f'how.step{i}')}" for i in range(1, 5))
-                },
-            )
         new_visitor = loc.make(
             gr.Button,
             lambda lang: {"value": t(lang, "footer.new_visitor")},
@@ -194,7 +187,6 @@ def build_demo(
             show_progress="hidden",
             **visibility,
         )
-        how.expand(touch, [session], [session], queue=False, show_progress="hidden", **visibility)
         theme_button.click(fn=None, js=TOGGLE_DARK_JS)
         demo.load(fn=None, js=ZOOM_JS)
 

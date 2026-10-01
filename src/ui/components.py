@@ -42,6 +42,15 @@ class Localizer:
         return {component: props(lang) for component, props in self._bindings}
 
 
+def build_heading(loc: Localizer, title_key: str, hint_key: str) -> Any:
+    """A bold section title with a one-line explanation under it."""
+    return loc.make(
+        gr.Markdown,
+        lambda lang: {"value": f"**{loc.t(lang, title_key)}**  \n{loc.t(lang, hint_key)}"},
+        elem_classes=["section-heading"],
+    )
+
+
 def merge(*parts: Updates) -> Updates:
     merged: Updates = {}
     for part in parts:
