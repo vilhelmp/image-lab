@@ -42,6 +42,26 @@ DEFAULT_CONCURRENCY = 10
 IMAGE_CACHE_CLEAN_EVERY_SECONDS = 60
 IMAGE_CACHE_MAX_AGE_SECONDS = 600
 TOGGLE_DARK_JS = "() => document.body.classList.toggle('dark')"
+# Tap the result to zoom it to the full screen; any tap or Escape closes it again.
+ZOOM_JS = """() => {
+  if (window.__zoomReady) return;
+  window.__zoomReady = true;
+  const box = () => document.getElementById('result-image');
+  document.addEventListener('click', (e) => {
+    const el = box();
+    if (!el) return;
+    if (el.classList.contains('zoomed')) {
+      el.classList.remove('zoomed');
+      e.preventDefault();
+      e.stopPropagation();
+    } else if (e.target.closest('#result-image img')) {
+      el.classList.add('zoomed');
+    }
+  }, true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') box()?.classList.remove('zoomed');
+  });
+}"""
 SCROLL_TOP_JS = "() => window.scrollTo(0, 0)"
 DEVICE_STORAGE_KEY = "ai-image-lab-device"
 
@@ -176,6 +196,7 @@ def build_demo(
         )
         how.expand(touch, [session], [session], queue=False, show_progress="hidden", **visibility)
         theme_button.click(fn=None, js=TOGGLE_DARK_JS)
+        demo.load(fn=None, js=ZOOM_JS)
 
         if cfg.app.default_theme != "system":
             action = "add" if cfg.app.default_theme == "dark" else "remove"

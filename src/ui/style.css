@@ -51,6 +51,27 @@ button {
 #result-image img {
   max-height: 70vh;
   object-fit: contain;
+  cursor: zoom-in;
+}
+
+#result-image.zoomed {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.9);
+  border: 0;
+  border-radius: 0;
+}
+
+#result-image.zoomed img {
+  max-height: 100vh;
+  max-width: 100vw;
+  width: 100%;
+  height: 100vh;
+  cursor: zoom-out;
 }
 
 .new-visitor {
