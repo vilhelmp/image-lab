@@ -159,6 +159,13 @@ class SafetyService:
             logger.warning("generated text refused: %s", refusal.code)
             raise CheckFailedError from refusal
 
+    async def check_moderation(self, text: str) -> None:
+        """Moderation only, for a final text whose LLM-written part has had the policy check."""
+        verdict = await self._moderate_text(text)
+        if verdict.flagged:
+            logger.warning("refusal stage=text_moderation code=%s", verdict.code)
+            raise CheckFailedError
+
     async def _moderate_text(self, text: str) -> ModerationResult:
         return await self._moderate(self._moderator.moderate_text(text), "text check")
 

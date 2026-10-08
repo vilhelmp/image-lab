@@ -108,7 +108,7 @@ class FakeTextProvider(TextProvider):
         self.responses = responses or {
             "improve": {"prompt": "A friendly scene with soft evening light"},
             "surprise": {"prompt": "A whale reading a book on a Swedish island"},
-            "edit_instruction": {"instruction": "Move the subject to a new setting"},
+            "edit_instruction": {"setting": "a new setting"},
         }
         self.calls: list[str] = []
 

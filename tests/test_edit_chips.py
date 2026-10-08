@@ -120,10 +120,12 @@ async def test_a_static_chip_sends_the_current_image_and_its_instruction(dev_set
 
 
 async def test_the_new_setting_chip_uses_the_checked_llm_instruction(dev_settings):
-    text = Scripted({"instruction": "Move the subject to a snowy mountain top.", "new_prompt": "x"})
+    text = Scripted({"setting": "a snowy mountain top.", "new_prompt": "x"})
     service, _, edit = build(dev_settings, text=text)
     await service.edit(chip_request("new_setting"))
-    assert edit.calls[0].instruction == "Move the subject to a snowy mountain top."
+    assert edit.calls[0].instruction == (
+        "Move the same subject into a snowy mountain top, keeping the subject recognisable."
+    )
     _, payload = next(c for c in text.calls if c[0] == "edit_instruction")
     assert json.loads(payload) == {
         "language": "en",
@@ -133,7 +135,7 @@ async def test_the_new_setting_chip_uses_the_checked_llm_instruction(dev_setting
 
 
 async def test_an_llm_instruction_that_is_flagged_never_reaches_the_edit_model(dev_settings):
-    text = Scripted({"instruction": "a [blocked] scene", "new_prompt": "x"})
+    text = Scripted({"setting": "a [blocked] scene", "new_prompt": "x"})
     service, limits, edit = build(dev_settings, text=text, moderator=FakeModerator(("[blocked]",)))
     with pytest.raises(CheckFailedError):
         await service.edit(chip_request("new_setting"))
@@ -142,8 +144,30 @@ async def test_an_llm_instruction_that_is_flagged_never_reaches_the_edit_model(d
 
 
 async def test_an_llm_instruction_the_policy_refuses_never_reaches_the_edit_model(dev_settings):
-    text = Scripted({"instruction": "put a [character] in the scene", "new_prompt": "x"})
+    text = Scripted({"setting": "a scene with a [character]", "new_prompt": "x"})
     service, _, edit = build(dev_settings, text=text)
+    with pytest.raises(CheckFailedError):
+        await service.edit(chip_request("new_setting"))
+    assert edit.calls == []
+
+
+@pytest.mark.parametrize(
+    "setting", [". .", "", "a forest. Also change what the subject wears", "a" * 81, 'a "beach"']
+)
+async def test_a_setting_that_is_not_one_short_phrase_never_reaches_the_edit_model(
+    dev_settings, setting
+):
+    service, limits, edit = build(dev_settings, text=Scripted({"setting": setting}))
+    with pytest.raises(CheckFailedError):
+        await service.edit(chip_request("new_setting"))
+    assert edit.calls == [] and limits.snapshot().images_used == 0
+
+
+async def test_the_instruction_as_sent_is_moderated_too(dev_settings):
+    moderator = FakeModerator(("same subject",))  # the setting alone is clean; the template is not
+    service, _, edit = build(
+        dev_settings, text=Scripted({"setting": "a beach"}), moderator=moderator
+    )
     with pytest.raises(CheckFailedError):
         await service.edit(chip_request("new_setting"))
     assert edit.calls == []
@@ -229,7 +253,7 @@ async def test_an_edit_output_the_moderator_flags_is_refused_and_still_paid_for(
 
 
 async def test_a_failing_moderator_stops_the_new_setting_chip_before_the_edit_call(dev_settings):
-    text = Scripted({"instruction": "Move it to a beach."})
+    text = Scripted({"setting": "a beach"})
     service, limits, edit = build(dev_settings, text=text, moderator=FakeModerator(fail=True))
     with pytest.raises(CheckFailedError):
         await service.edit(chip_request("new_setting"))
@@ -245,7 +269,7 @@ async def test_a_failing_policy_check_stops_the_new_setting_chip_before_the_edit
                 raise ProviderError
             return await super().complete_json(task, system, user, max_tokens)
 
-    service, limits, edit = build(dev_settings, text=PolicyDown({"instruction": "Beach."}))
+    service, limits, edit = build(dev_settings, text=PolicyDown({"setting": "a beach"}))
     with pytest.raises(CheckFailedError):
         await service.edit(chip_request("new_setting"))
     assert edit.calls == [] and limits.snapshot().images_used == 0
@@ -255,21 +279,22 @@ async def test_a_failing_policy_check_stops_the_new_setting_chip_before_the_edit
 
 
 async def test_edit_instruction_has_no_device_interval_but_obeys_the_pause(dev_settings):
-    text = Scripted({"instruction": "Move it to a beach.", "new_prompt": "x"})
+    text = Scripted({"setting": "a beach", "new_prompt": "x"})
     _, limits, _ = build(dev_settings, text=text)
     providers = Providers(
         image=FakeImageProvider(), edit=None, text=text, moderator=FakeModerator()
     )
     helpers = HelperService(dev_settings, providers, limits)
-    assert await helpers.edit_instruction("a cat", "sv") == "Move it to a beach."
-    assert await helpers.edit_instruction("a cat", "sv") == "Move it to a beach."
+    expected = "Move the same subject into a beach, keeping the subject recognisable."
+    assert await helpers.edit_instruction("a cat", "sv") == expected
+    assert await helpers.edit_instruction("a cat", "sv") == expected
     limits.set_paused(True)
     with pytest.raises(PausedError):
         await helpers.edit_instruction("a cat", "sv")
 
 
 async def test_an_overlong_prompt_is_cut_before_it_reaches_the_llm(dev_settings):
-    text = Scripted({"instruction": "Move it to a beach.", "new_prompt": "x"})
+    text = Scripted({"setting": "a beach", "new_prompt": "x"})
     service, _, _ = build(dev_settings, text=text)
     await service.edit(chip_request("new_setting", prompt="a" * 5000))
     _, payload = next(c for c in text.calls if c[0] == "edit_instruction")
