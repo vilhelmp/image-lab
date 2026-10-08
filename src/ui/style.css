@@ -213,6 +213,8 @@ textarea {
 #photo-result.zoomed {
   aspect-ratio: auto;
   max-height: none;
+  height: 100vh !important; /* the photo result has a fixed height set by Gradio */
+  width: 100vw !important;
   position: fixed;
   inset: 0;
   z-index: 1000;
