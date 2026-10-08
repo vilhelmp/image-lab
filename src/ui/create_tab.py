@@ -177,6 +177,7 @@ def build_create_tab(
         text=text,
         status=status,
         rewrite_card=rewrite_card,
+        create_button=create_button,
         api_visibility=api_visibility,
         max_chars=settings.config.safety.max_input_chars,
         help_me=features.help_me,

@@ -21,6 +21,7 @@ from src.services.helpers import HelperService
 from src.services.library import PromptLibrary
 from src.services.limits import device_identity
 from src.services.session import VisitorSession
+from src.ui.busy import start_js
 from src.ui.components import ApiVisibility, Block, Localizer, Updates, build_heading
 from src.ui.ideas import IdeasPanel, build_ideas
 
@@ -94,6 +95,7 @@ def wire_helpers(
     text: gr.Textbox,
     status: gr.Markdown,
     rewrite_card: gr.Button,
+    create_button: gr.Button,
     api_visibility: ApiVisibility,
     max_chars: int,
     help_me: bool,
@@ -101,7 +103,7 @@ def wire_helpers(
 ) -> None:
     t = loc.t
     quiet = {"queue": False, "show_progress": "hidden", "api_visibility": api_visibility}
-    outputs = [session, device, *row.buttons, text, row.undo, status, rewrite_card]
+    outputs = [session, device, *row.buttons, create_button, text, row.undo, status, rewrite_card]
     buttons = iter(row.buttons)
 
     def handler(name: str, run: Run):
@@ -109,8 +111,8 @@ def wire_helpers(
             current.touch()
             lang = current.lang
             device_id, device_hash = device_identity(device_value)
-            busy = [gr.update(interactive=False)] * len(row.buttons)
-            ready = [gr.update(interactive=True)] * len(row.buttons)
+            busy = [gr.update(interactive=False)] * (len(row.buttons) + 1)  # and Create
+            ready = [gr.update(interactive=True)] * (len(row.buttons) + 1)
             yield (
                 current,
                 device_id,
@@ -161,6 +163,7 @@ def wire_helpers(
             handler("on_help", lambda idea, lang, dev: helpers.improve(idea, lang, dev)),
             [text, device, session],
             outputs,
+            js=start_js("helper"),
             api_visibility=api_visibility,
         )
     if surprise_me:
@@ -168,6 +171,7 @@ def wire_helpers(
             handler("on_surprise", lambda idea, lang, dev: helpers.surprise(lang, dev)),
             [text, device, session],
             outputs,
+            js=start_js("helper"),
             api_visibility=api_visibility,
         )
 

@@ -295,6 +295,31 @@ textarea {
   }
 }
 
+/* Help me / Give me an idea: the text box dims and shows a small spinner while the AI writes. */
+#idea-box {
+  position: relative;
+}
+
+#idea-box.busy-helper textarea {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+#idea-box.busy-helper::after {
+  content: "";
+  position: absolute;
+  top: 62%;
+  right: 24px;
+  z-index: 5;
+  width: 32px;
+  height: 32px;
+  margin-top: -16px;
+  border: 4px solid rgba(99, 102, 241, 0.25);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: busy-spin 0.9s linear infinite;
+}
+
 #result-wrap.busy-create .busy-edit-text,
 #result-wrap.busy-edit .busy-create-text {
   display: none;

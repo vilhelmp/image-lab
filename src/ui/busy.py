@@ -17,7 +17,9 @@ import gradio as gr
 
 from src.ui.components import Localizer
 
-Kind = Literal["create", "edit"]
+Kind = Literal["create", "edit", "helper"]
+# Create and edit cover the result image; the helper buttons cover the text box they fill.
+TARGET_IDS: dict[str, str] = {"create": "result-wrap", "edit": "result-wrap", "helper": "idea-box"}
 NEVER_DISABLED_MS = 3_000
 FAILSAFE_MS = 75_000
 
@@ -25,7 +27,7 @@ FAILSAFE_MS = 75_000
 def start_js(kind: Kind) -> str:
     """Browser hook for `click(js=...)`: runs before the server call and passes its inputs on."""
     return f"""(...args) => {{
-  const wrap = document.getElementById('result-wrap');
+  const wrap = document.getElementById('{TARGET_IDS[kind]}');
   const button = document.querySelector('.primary-action');
   if (!wrap || !button) return args;
   window.__busyObserver?.disconnect();
@@ -35,10 +37,10 @@ def start_js(kind: Kind) -> str:
     window.__busyObserver?.disconnect();
     clearTimeout(window.__busyTimer);
     clearTimeout(window.__busyGrace);
-    wrap.classList.remove('busy', 'busy-create', 'busy-edit');
+    wrap.classList.remove('busy', 'busy-create', 'busy-edit', 'busy-helper');
   }};
   let seenDisabled = button.disabled;
-  wrap.classList.remove('busy-create', 'busy-edit');
+  wrap.classList.remove('busy-create', 'busy-edit', 'busy-helper');
   wrap.classList.add('busy', 'busy-{kind}');
   window.__busyObserver = new MutationObserver(() => {{
     if (button.disabled) seenDisabled = true;
