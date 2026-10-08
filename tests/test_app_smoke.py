@@ -161,3 +161,13 @@ def test_swap_toggles_between_the_image_before_and_after_a_chip(client: Client):
 def test_swap_without_an_edit_does_nothing(client: Client):
     client.predict("A cat", None, api_name="/on_create")
     assert client.predict(api_name="/on_swap") == (NOOP, NOOP)
+
+
+def test_the_visitor_can_see_what_the_model_received(client: Client):
+    client.predict("A <b>cat</b>", None, api_name="/on_create")
+    shown = client.predict(api_name="/on_received")["value"]
+    assert "A &lt;b&gt;cat&lt;/b&gt;" in shown and "<b>" not in shown  # escaped, never markup
+    assert "received-model" in shown
+    client.predict(None, api_name="/on_chip_evening_light")
+    edited = client.predict(api_name="/on_received")["value"]
+    assert edited.count("<blockquote>") == 2  # the picture's text and the change

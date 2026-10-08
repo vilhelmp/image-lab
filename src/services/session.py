@@ -12,6 +12,7 @@ class GeneratedImage:
     prompt: str = field(repr=False)
     model_key: str
     seconds: float
+    instruction: str = field(default="", repr=False)  # the edit sent to the model, if any
 
 
 @dataclass

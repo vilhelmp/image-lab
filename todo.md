@@ -126,7 +126,7 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 - [ ] Style thumbnails in `assets/style_thumbs/`
 - [ ] iPad CSS: tap targets are now at least 44 px (Apple's minimum), light and dark, a lighter design with smaller text and pill buttons, a restyled login page; checked in a desktop browser only. Open: landscape and portrait on a real iPad
 - [x] How it works tab (replaces the accordion): a pipeline of eight steps lit one at a time with Next and Back, colour-coded by who does the work (you, plain code, language model, image model, safety check)
-- [ ] "What did the model receive?": show the visitor's final English prompt (and the translation) in the How it works tab or under the image. The final prompt is already stored per image
+- [x] "What did the model receive?": a button under the image opens a card with the final English prompt (translated, style added), the edit instruction after an edit, and the model name; a ready-made library example says so instead. Opened and closed in the browser, closed by Create, edits and swap (2026-10-08)
 - [x] Status messages while generating; buttons disabled (a busy overlay on the result for Create, edits and photos, and on the text box for Help me and Give me an idea)
 - [x] Tap the image to zoom; Enter in the text box creates; New visitor asks for confirmation; language and light/dark are two small header buttons
 - [x] Clearer labels and section headings (examples, improve my text, give me an idea, style, edit panel)
@@ -136,7 +136,7 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 ## Phase 7: Ship
 
 - [ ] README: screenshot, Duplicate Space steps, 5-minute quick start, provider privacy note
-- [ ] README states the hardware tested (ZeroGPU on a free account and/or CPU Basic on PRO) and the Space's sleep and wake behaviour (spec §18.5)
+- [x] README states the hardware tested (CPU Basic on PRO, earlier ZeroGPU on a free account), the Space's sleep and wake behaviour, secrets, deploy steps and a quick start (spec §18.5; 2026-10-08)
 - [ ] Workshop checklist in README (spec §19)
 - [ ] Optional QR handoff (`features.qr_handoff`), documented as an unauthenticated route
 - [ ] Deploy to the HF Gradio SDK Space on the hardware chosen in Phase 1b; set secrets and turn off `DEVELOPMENT_MODE`; Storage Bucket stays off. Done 2026-09-30: secrets set, real image generated on `magnusp-image-lab.hf.space`. Open: admin tab and Space logs check, iPad test, wake time, billing limits confirmed
@@ -144,7 +144,7 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 
 ## Workshop readiness (spec §19 and §21)
 
-- [ ] Hosting decision from Phase 1b still holds. 2026-10-08: the account is now PRO, so switch the Space to CPU Basic (the app never uses a GPU), then run one Create and one edit. Free hardware sleeps after 48 h: open the Space about 15 minutes before, or use CPU upgrade ($0.03/hour) for the day
+- [x] Hosting decision from Phase 1b still holds. 2026-10-08: the account is now PRO and the Space runs on CPU Basic (the app never uses a GPU); CI is green on GitHub Actions, and one Create and one edit work on the Space. Free hardware sleeps after 48 h: open the Space about 15 minutes before, or use CPU upgrade ($0.03/hour) for the day
 - [ ] Prepaid credits loaded, auto-recharge off
 - [ ] Fal vs HF backend comparison on the same 20 prompts; backend chosen. Decision so far: `image_backend: hf` (fal-ai through Hugging Face); `fal.py` is not built and is optional
 - [x] Image model: keep `fast` (FLUX.1-schnell, Apache-2.0). 2026-10-08 bake-off against `quality` (FLUX.1-dev): 5.0 to 5.3 s against 5.8 to 6.4 s, about 13 times the price ($0.04 against $0.003), a modest visual gain, and a non-commercial licence. The `quality` model stays configured and unused

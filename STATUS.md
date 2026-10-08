@@ -45,7 +45,7 @@ Photo studio (2026-10-08): the "Fotostudio" tab (src/ui/photo_tab.py) lets a vis
 
 ## Not done
 
-Edit chips, Compare tab, style thumbnails, "What did the model receive?", `fal.py`, and the Space with real secrets. Login has not been tried on the Space or on an iPad with the real passwords yet. See [todo.md](todo.md).
+Edit chips, Compare tab, style thumbnails, `fal.py`. Login has been used on the Space with the real passwords (20+ characters); an iPad test is still open. "What did the model receive?" is built (a button under the image). See [todo.md](todo.md).
 
 ## Decisions and deviations from the spec
 

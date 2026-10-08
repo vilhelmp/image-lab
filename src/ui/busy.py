@@ -40,6 +40,7 @@ def start_js(kind: Kind) -> str:
   const wrap = document.getElementById('{TARGET_IDS[kind]}');
   const button = document.querySelector('{watched}');
   if (!wrap || !button) return args;
+  document.getElementById('received-card')?.classList.remove('open');
   window.__busyObserver?.disconnect();
   clearTimeout(window.__busyTimer);
   clearTimeout(window.__busyGrace);

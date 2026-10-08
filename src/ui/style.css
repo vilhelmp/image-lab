@@ -335,6 +335,35 @@ textarea {
   font-size: 0.95rem;
 }
 
+/* "What did the model receive?": opened by a class from src/ui/chips.py. */
+#received-card:not(.open) {
+  display: none;
+}
+
+.received-box {
+  padding: 12px 14px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.received-box p {
+  margin: 0 0 6px;
+}
+
+.received-box blockquote {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-left: 3px solid #6366f1;
+  overflow-wrap: anywhere;
+}
+
+.received-note,
+.received-model {
+  opacity: 0.75;
+}
+
 .chip-button {
   min-height: 44px;
   flex: 0 0 auto !important;

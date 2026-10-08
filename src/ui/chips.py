@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import logging
 from dataclasses import dataclass
 from typing import Any
@@ -10,7 +11,7 @@ import gradio as gr
 
 from src.config import Settings
 from src.errors import AppError, SafetyRefusalError, error_message_key
-from src.services.generation import ChipRequest, GenerationService
+from src.services.generation import LIBRARY_MODEL_KEY, ChipRequest, GenerationService
 from src.services.limits import device_identity
 from src.services.session import GeneratedImage, VisitorSession
 from src.ui.busy import start_js
@@ -18,7 +19,16 @@ from src.ui.components import ApiVisibility, Block, Localizer, Updates, build_he
 
 logger = logging.getLogger(__name__)
 
-HOW_JS = "() => document.querySelectorAll('[role=\"tab\"]')[1]?.click()"
+
+def _card_js(action: str) -> str:
+    card = "document.getElementById('received-card')"
+    return f"(...args) => {{ {card}?.classList.{action}('open'); return args; }}"
+
+
+HOW_JS = '() => document.querySelector(\'[role="tab"][data-tab-id="how"]\')?.click()'
+# Opens and closes the card in the browser; the server only fills it with text.
+RECEIVED_JS = _card_js("toggle")
+CLOSE_RECEIVED_JS = _card_js("remove")
 
 
 @dataclass
@@ -26,15 +36,18 @@ class ChipRow:
     panel: gr.Column
     buttons: dict[str, gr.Button]
     swap: gr.Button
+    received_button: gr.Button
+    received: gr.HTML
 
     @property
     def managed(self) -> list[Block]:
-        return [self.panel, self.swap, *self.buttons.values()]
+        return [self.panel, self.swap, self.received, *self.buttons.values()]
 
     def reset_props(self) -> Updates:
         return {
             self.panel: {"visible": False},
             self.swap: {"visible": False, "interactive": True},
+            self.received: {"value": ""},
             **{button: {"interactive": True} for button in self.buttons.values()},
         }
 
@@ -62,6 +75,13 @@ def build_chip_row(*, settings: Settings, loc: Localizer) -> ChipRow:
                 )
                 for key in settings.config.ui.edit_chips
             }
+        received_button = loc.make(
+            gr.Button,
+            lambda lang: {"value": t(lang, "received.button")},
+            variant="secondary",
+            elem_classes=["swap-button"],
+        )
+        received = gr.HTML(elem_id="received-card")
         how = loc.make(
             gr.Button,
             lambda lang: {"value": t(lang, "chips.how")},
@@ -69,7 +89,7 @@ def build_chip_row(*, settings: Settings, loc: Localizer) -> ChipRow:
             elem_classes=["swap-button"],
         )
     how.click(fn=None, js=HOW_JS)
-    return ChipRow(panel, buttons, swap)
+    return ChipRow(panel, buttons, swap, received_button, received)
 
 
 def wire_chips(
@@ -158,7 +178,9 @@ def wire_chips(
                 )
                 return
             current.set_edited(
-                GeneratedImage(made.image, source.prompt, made.model_key, made.seconds),
+                GeneratedImage(
+                    made.image, source.prompt, made.model_key, made.seconds, made.final_prompt
+                ),
                 history_size,
             )
             yield (
@@ -200,5 +222,52 @@ def wire_chips(
         [session, result, status],
         queue=False,
         show_progress="hidden",
+        js=CLOSE_RECEIVED_JS,
         api_visibility=api_visibility,
     )
+
+    def on_received(current: VisitorSession):
+        current.touch()
+        return current, gr.update(value=received_html(current.current, current.lang))
+
+    def received_html(image: GeneratedImage | None, lang: str) -> str:
+        if image is None:
+            return ""
+        parts = [
+            f'<div class="received-box"><p class="received-note">{_e(t(lang, "received.note"))}</p>'
+        ]
+        if image.model_key == LIBRARY_MODEL_KEY:
+            parts.append(f"<p>{_e(t(lang, 'received.library'))}</p>")
+        else:
+            parts.append(f'<p class="received-label">{_e(t(lang, "received.prompt"))}</p>')
+            parts.append(f"<blockquote>{_e(image.prompt)}</blockquote>")
+            if image.instruction:
+                parts.append(f'<p class="received-label">{_e(t(lang, "received.edit"))}</p>')
+                parts.append(f"<blockquote>{_e(image.instruction)}</blockquote>")
+            model = _model_name(settings, image.model_key)
+            if model:
+                parts.append(
+                    f'<p class="received-model">{_e(t(lang, "received.model", model=model))}</p>'
+                )
+        parts.append("</div>")
+        return "".join(parts)
+
+    chips.received_button.click(
+        on_received,
+        [session],
+        [session, chips.received],
+        queue=False,
+        show_progress="hidden",
+        js=RECEIVED_JS,
+        api_visibility=api_visibility,
+    )
+
+
+def _e(value: str) -> str:
+    return html.escape(value)
+
+
+def _model_name(settings: Settings, model_key: str) -> str:
+    models = settings.models
+    model = models.image_models.get(model_key) or models.edit_models.get(model_key)
+    return settings.model_id_for(model) if model else ""
