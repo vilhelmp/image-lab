@@ -387,19 +387,74 @@ textarea {
   overflow-y: visible !important;
 }
 
-.ideas-gallery .caption-label {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  margin: 0;
-  border-radius: 0;
-  padding: 6px 8px;
-  white-space: normal;
-  font-size: 0.85rem;
-  line-height: 1.25;
+/* Example cards: the picture on top, its text below (not laid over it). 2 columns on a phone. */
+.ideas-gallery .grid-container {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px;
+}
+
+@media (min-width: 700px) {
+  .ideas-gallery .grid-container {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+.ideas-gallery .thumbnail-item {
+  display: flex;
+  flex-direction: column;
+  height: auto !important;
+  aspect-ratio: auto !important;
+  overflow: visible;
+  background: transparent;
+  border: 0;
   text-align: left;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
+}
+
+.ideas-gallery .thumbnail-item img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.ideas-gallery .caption-label {
+  position: static !important;
+  margin: 0;
+  padding: 6px 2px 0;
+  white-space: normal;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  text-align: left;
+  background: transparent;
+  color: var(--body-text-color);
+}
+
+/* Category pills: they wrap, so every category is visible on any screen. */
+#ideas-categories,
+#ideas-categories .wrap {
+  height: auto !important;
+  min-height: 0;
+  overflow: visible !important;
+}
+
+/* The panel is a scrolling flex column: without this the pills shrink to nothing. */
+#ideas-categories,
+.ideas-group {
+  flex-shrink: 0;
+}
+
+#ideas-categories .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#ideas-categories label {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 0.85rem;
 }
 
 /* The "How it works" pipeline: steps are lit by src/ui/how_tab.py scripts. */

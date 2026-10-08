@@ -51,23 +51,39 @@ def build_ideas(
                     elem_classes=["ideas-close"],
                 )
             loc.make(gr.Markdown, lambda lang: {"value": t(lang, "ideas.hint")})
-            with gr.Tabs():
-                for group in library.groups:
-                    with loc.make(gr.Tab, lambda lang, g=group: {"label": g.label[lang]}):
-                        gallery = loc.make(
-                            gr.Gallery,
-                            lambda lang, g=group: {"value": _items(library, g, lang)},
-                            columns=GALLERY_COLUMNS,
-                            height="auto",
-                            object_fit="cover",
-                            allow_preview=False,
-                            interactive=False,
-                            show_label=False,
-                            buttons=[],
-                            elem_classes=["ideas-gallery"],
-                        )
-                        galleries.append(gallery)
-                        gallery.select(_pick(group), [session], [session, text, overlay], **quiet)
+            # Pills that wrap, not Gradio tabs: tabs fold into a "..." menu on a small screen.
+            first = library.groups[0].id
+            category = loc.make(
+                gr.Radio,
+                lambda lang: {"choices": [(g.label[lang], g.id) for g in library.groups]},
+                value=first,
+                show_label=False,
+                container=False,
+                elem_id="ideas-categories",
+            )
+            columns: list[gr.Column] = []
+            for group in library.groups:
+                with gr.Column(visible=group.id == first, elem_classes=["ideas-group"]) as column:
+                    gallery = loc.make(
+                        gr.Gallery,
+                        lambda lang, g=group: {"value": _items(library, g, lang)},
+                        columns=GALLERY_COLUMNS,
+                        height="auto",
+                        object_fit="cover",
+                        allow_preview=False,
+                        interactive=False,
+                        show_label=False,
+                        buttons=[],
+                        elem_classes=["ideas-gallery"],
+                    )
+                    galleries.append(gallery)
+                    gallery.select(_pick(group), [session], [session, text, overlay], **quiet)
+                columns.append(column)
+
+            def show_category(chosen: str):
+                return [gr.update(visible=g.id == chosen) for g in library.groups]
+
+            category.input(show_category, [category], columns, **quiet)
 
     def open_panel(current: VisitorSession):
         current.touch()
