@@ -219,6 +219,7 @@ def build_create_tab(
             gr.update(value="", visible=False),
             gr.skip(),
             gr.update(visible=False),
+            gr.skip(),
         )
         yield (
             current,
@@ -227,6 +228,7 @@ def build_create_tab(
             gr.update(value=t(lang, "create.working"), visible=True),
             gr.skip(),
             gr.update(visible=False),
+            gr.skip(),
         )
         try:
             made = await service.create(
@@ -255,6 +257,7 @@ def build_create_tab(
                 gr.update(value=message, visible=True),
                 gr.skip(),
                 gr.update(value=rewrite, visible=True) if rewrite else gr.update(visible=False),
+                gr.update(value=idea),
             )
             return
         if current.epoch != epoch:
@@ -273,12 +276,13 @@ def build_create_tab(
             else gr.update(value="", visible=False),
             gr.update(value=picture, visible=True),
             gr.update(visible=False),
+            gr.update(value=idea),  # the prompt stays in the box, whatever the browser does
         )
 
     created = create_button.click(
         on_create,
         [text, device, session],
-        [session, device, create_button, status, result, rewrite_card],
+        [session, device, create_button, status, result, rewrite_card, text],
         js=start_js("create"),
         **visibility,
     )

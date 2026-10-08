@@ -63,15 +63,16 @@ def test_app_builds_with_fakes(dev_settings: Settings, fake_providers):
 
 
 def test_create_completes_with_fakes(client: Client):
-    device, status, image = client.predict("A cat", None, api_name="/on_create")
+    device, status, image, prompt = client.predict("A cat", None, api_name="/on_create")
     assert device
     assert status["visible"] is False
     assert image["visible"] is True
     assert image["value"].endswith(".png")
+    assert prompt["value"] == "A cat"  # the prompt stays in the box
 
 
 def test_a_library_prompt_shows_its_cached_example_with_a_note(client: Client):
-    _, status, image = client.predict(
+    _, status, image, _ = client.predict(
         "A fox in a snowy forest, caught mid-step, soft winter light", None, api_name="/on_create"
     )
     assert image["value"].endswith(".webp") or image["value"].endswith(".png")
@@ -108,7 +109,7 @@ def test_an_unknown_language_is_rejected_by_the_framework(client: Client):
 
 
 def test_a_chip_edits_the_current_image(client: Client):
-    _, _, created = client.predict("A cat", None, api_name="/on_create")
+    _, _, created, _ = client.predict("A cat", None, api_name="/on_create")
     device, status, edited = client.predict(None, api_name="/on_chip_evening_light")
     assert status["visible"] is True and status["value"] == "Ändrad: Kvällsljus"
     assert edited["value"] and edited["value"] != created["value"]
@@ -127,8 +128,9 @@ def test_a_chip_without_an_image_does_nothing(client: Client):
 
 
 def test_empty_idea_shows_friendly_message(client: Client):
-    _, status, _ = client.predict("   ", None, api_name="/on_create")
+    _, status, _, prompt = client.predict("   ", None, api_name="/on_create")
     assert status["value"] == "Skriv först vad du vill skapa."
+    assert prompt["value"] == "   "
 
 
 def test_new_visitor_resets_language_and_text(client: Client):
