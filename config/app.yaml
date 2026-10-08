@@ -88,7 +88,7 @@ safety:
 
 limits:
   max_images: 1000
-  max_cost_usd: 40
+  max_cost_usd: 8 # below the prepaid Hugging Face credit; the counters pace, the credit is the hard cap
   max_concurrent_generations: 6
   max_generations_per_minute: 30
   device_cooldown_seconds: 5 # counted from the start of the previous Create

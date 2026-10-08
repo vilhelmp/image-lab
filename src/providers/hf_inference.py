@@ -9,10 +9,12 @@ prompt, a response or an exception message is logged.
 from __future__ import annotations
 
 import asyncio
+import functools
 import io
 import logging
 import time
 from collections.abc import Awaitable, Callable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import httpx
@@ -47,6 +49,7 @@ SIZES: dict[Aspect, tuple[int, int]] = {
     "portrait": (576, 1024),
 }
 _FAL = "fal-ai"
+_SDK_THREADS = ThreadPoolExecutor(max_workers=16, thread_name_prefix="hf-sdk")
 
 
 def safety_extra(provider: str | None) -> dict[str, Any] | None:
@@ -90,8 +93,12 @@ class HFRunner:
             try:
                 # The SDK's fal route downloads the image with a blocking call, so the whole call
                 # runs in a worker thread: the event loop stays free and the timeout can fire.
+                # A pool of its own, so slow image calls never starve photo decoding and reads.
                 return await asyncio.wait_for(
-                    asyncio.to_thread(call, *args, **kwargs), timeout=remaining
+                    asyncio.get_running_loop().run_in_executor(
+                        _SDK_THREADS, functools.partial(call, *args, **kwargs)
+                    ),
+                    timeout=remaining,
                 )
             except (TimeoutError, InferenceTimeoutError, httpx.TimeoutException):
                 logger.warning("%s: timeout", label)

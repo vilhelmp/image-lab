@@ -323,6 +323,7 @@ def main() -> None:
         max_file_size="15mb",  # a photo upload is cut off here, before it reaches the app
         footer_links=[],
         mcp_server=False,
+        enable_monitoring=False,  # no usage analytics page for logged-in visitors
     )
 
 

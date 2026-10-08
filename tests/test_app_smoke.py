@@ -158,6 +158,13 @@ def test_swap_toggles_between_the_image_before_and_after_a_chip(client: Client):
     assert client.predict(api_name="/on_swap")[0]["value"] != original["value"]
 
 
+def test_the_received_card_is_never_shared_between_visitors(client: Client):
+    other = Client(client.src, verbose=False)
+    client.predict("A secret cat", None, api_name="/on_create")
+    assert "secret cat" in client.predict(api_name="/on_received")["value"]
+    assert other.predict(api_name="/on_received")["value"] == ""
+
+
 def test_swap_without_an_edit_does_nothing(client: Client):
     client.predict("A cat", None, api_name="/on_create")
     assert client.predict(api_name="/on_swap") == (NOOP, NOOP)
