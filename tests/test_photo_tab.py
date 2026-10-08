@@ -28,10 +28,39 @@ def studio(dev_settings, fake_providers) -> Iterator[tuple[Client, RuntimeFlags]
         demo.close()
 
 
-def test_the_photo_tab_exists_but_starts_hidden(dev_settings, fake_providers):
+def test_the_photo_tab_is_always_there_and_only_tabs_sit_inside_the_tabs(
+    dev_settings, fake_providers
+):
     config = build_demo(dev_settings, fake_providers).get_config_file()
-    tab = next(c for c in config["components"] if c["props"].get("id") == "photo")
-    assert tab["props"]["visible"] is False
+    components = {c["id"]: c for c in config["components"]}
+    tab = next(c for c in components.values() if c["props"].get("id") == "photo")
+    assert tab["props"].get("visible", True) is True  # a tab that comes and goes breaks Gradio
+
+    def find_tabs(node):
+        if components.get(node["id"], {}).get("type") == "tabs":
+            return node
+        return next((f for child in node.get("children", []) if (f := find_tabs(child))), None)
+
+    tabs = find_tabs(config["layout"])
+    # Anything between two tabs makes Gradio list the next tab twice (trailing items are fine).
+    kinds = [components[c["id"]]["type"] for c in tabs["children"]]
+    assert "tabitem" in kinds
+    assert set(kinds[: len(kinds) - kinds[::-1].index("tabitem")]) == {"tabitem"}
+
+
+def test_timers_never_update_visible_components(dev_settings, fake_providers):
+    # A timer that updates the webcam, tabs or text box makes Gradio rebuild them in the browser
+    # (the webcam restarts, tabs get duplicated). Timers may only write markers and admin text.
+    config = build_demo(dev_settings, fake_providers).get_config_file()
+    types = {c["id"]: c["type"] for c in config["components"]}
+    for c in config["components"]:
+        if c["props"].get("elem_id") == "photo-flag":
+            types[c["id"]] = "marker"
+    ticks = [d for d in config["dependencies"] if any(t[1] == "tick" for t in d["targets"])]
+    assert ticks
+    for dependency in ticks:
+        allowed = {"state", "marker", "markdown", "checkbox"}
+        assert {types[o] for o in dependency["outputs"]} <= allowed
 
 
 def test_a_photo_is_restyled(studio, photo_file):

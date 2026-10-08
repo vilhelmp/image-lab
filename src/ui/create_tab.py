@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import html
+import json
 import logging
-import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -27,6 +27,20 @@ logger = logging.getLogger(__name__)
 
 PLACEHOLDER_KEYS = ("create.placeholder.1", "create.placeholder.2", "create.placeholder.3")
 PLACEHOLDER_ROTATE_SECONDS = 8
+
+
+def rotate_placeholder_js(options: dict[str, list[str]]) -> str:
+    """Show the next example in the empty text box, in the language the header button shows."""
+    return f"""() => {{
+  const box = document.querySelector('#idea-box textarea');
+  if (!box || box.value) return;
+  const options = {json.dumps(options, ensure_ascii=False)};
+  const lang = (document.getElementById('lang-button')?.innerText || '').trim().toLowerCase();
+  const list = options[lang] || Object.values(options)[0];
+  window.__placeholder = ((window.__placeholder ?? -1) + 1) % list.length;
+  box.placeholder = list[window.__placeholder];
+}}"""
+
 
 Handler = Callable[..., Any]
 
@@ -319,13 +333,7 @@ def build_create_tab(
         **visibility,
     )
 
-    def on_rotate(current: VisitorSession):
-        options = placeholders(current.lang)
-        return gr.update(
-            placeholder=options[int(time.time() // PLACEHOLDER_ROTATE_SECONDS) % len(options)]
-        )
-
-    gr.Timer(PLACEHOLDER_ROTATE_SECONDS).tick(
-        on_rotate, [session], [text], show_progress="hidden", queue=False, **visibility
-    )
+    # In the browser: a server update to the text box every few seconds makes Gradio rebuild it.
+    options = {code: placeholders(code) for code in settings.config.app.languages}
+    gr.Timer(PLACEHOLDER_ROTATE_SECONDS).tick(fn=None, js=rotate_placeholder_js(options))
     return tab

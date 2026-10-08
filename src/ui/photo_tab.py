@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,6 +26,7 @@ from src.ui.components import ApiVisibility, Block, Localizer, Updates, build_he
 
 logger = logging.getLogger(__name__)
 FLAGS_REFRESH_SECONDS = 5
+OPEN_JS = "(flag) => document.body.classList.toggle('photo-open', flag === '1')"
 
 
 @dataclass
@@ -35,6 +37,8 @@ class PhotoTab:
     styles: dict[str, gr.Button]
     result: gr.Image
     status: gr.Markdown
+    # Follows the admin's on/off switch. Call it once, outside the Tabs block.
+    wire_switch: Callable[[], None]
 
     @property
     def managed(self) -> list[Block]:
@@ -67,9 +71,16 @@ def build_photo_tab(
     active = settings.active_edit_model()
     provider = (active[1].hf_provider or active[1].provider) if active else ""
 
-    with loc.make(
-        gr.Tab, lambda lang: {"label": t(lang, "tab.photo")}, id="photo", visible=False
-    ) as tab:
+    with loc.make(gr.Tab, lambda lang: {"label": t(lang, "tab.photo")}, id="photo") as tab:
+        # The tab itself is never shown or hidden: Gradio's tab list breaks when tabs come and go.
+        # Shown or hidden by a class on <body> (see OPEN_JS and style.css), not by server updates:
+        # Gradio drops visibility updates for components in a tab that is not yet on screen.
+        with gr.Column(elem_id="photo-closed"):
+            loc.make(
+                gr.Markdown,
+                lambda lang: {"value": t(lang, "photo.off")},
+                elem_classes=["status-card"],
+            )
         with gr.Row(elem_id="photo-layout", equal_height=False):
             with gr.Column(scale=1, min_width=340, elem_classes=["card-col"]):
                 loc.make(
@@ -219,11 +230,20 @@ def build_photo_tab(
             api_visibility=api_visibility,
         )
 
-    def on_flags():
-        return gr.update(visible=flags.photo_studio)
+    # A timer must never send updates to visible components: Gradio then rebuilds them (the
+    # webcam restarts, tabs get duplicated). It only writes a hidden marker; the marker's change
+    # event flips a class on <body> in the browser. The marker and the timer must be created
+    # outside the Tabs (see `wire_switch`): anything but a Tab directly inside the Tabs makes
+    # Gradio list the tab that follows twice.
+    def on_flag() -> str:
+        return "1" if flags.photo_studio else "0"
 
-    # The tick belongs to one photo: a new photo (or none) needs a new tick.
+    def wire_switch() -> None:
+        marker = gr.Textbox(elem_id="photo-flag", container=False, interactive=False)
+        timer = gr.Timer(FLAGS_REFRESH_SECONDS)
+        demo.load(on_flag, None, [marker], **visibility)
+        marker.change(fn=None, inputs=[marker], js=OPEN_JS)
+        timer.tick(on_flag, None, [marker], **visibility)
+
     photo.change(lambda: gr.update(value=False), None, [consent], **visibility)
-    demo.load(on_flags, None, [tab], **visibility)
-    gr.Timer(FLAGS_REFRESH_SECONDS).tick(on_flags, None, [tab], **visibility)
-    return PhotoTab(tab, photo, consent, styles, result, status)
+    return PhotoTab(tab, photo, consent, styles, result, status, wire_switch)

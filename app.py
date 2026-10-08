@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import logging
 import os
+import time
 from typing import Any
 
 import gradio as gr
@@ -130,6 +131,7 @@ def build_demo(
         delete_cache=(IMAGE_CACHE_CLEAN_EVERY_SECONDS, IMAGE_CACHE_MAX_AGE_SECONDS),
     ) as demo:
         session = gr.State(VisitorSession(lang=default_lang))
+        idle_marker = gr.State(0.0)
         device = gr.BrowserState(None, storage_key=DEVICE_STORAGE_KEY)
 
         with gr.Row(elem_id="header"):
@@ -197,6 +199,8 @@ def build_demo(
                 api_visibility=api_visibility,
             )
 
+        if photo:
+            photo.wire_switch()
         loc.make(
             gr.Markdown,
             lambda lang: {"value": t(lang, "footer.privacy")},
@@ -240,7 +244,12 @@ def build_demo(
                 *pack(managed, merged),
             ]
 
-        def on_idle(current: VisitorSession) -> list[Any]:
+        def on_idle(current: VisitorSession) -> Any:
+            # A timer must not send updates to visible components: Gradio rebuilds them (the
+            # webcam restarts, tabs get duplicated). It writes a marker; the reset follows from it.
+            return time.monotonic() if current.is_idle(cfg.ui.idle_reset_seconds) else gr.skip()
+
+        def on_idle_reset(current: VisitorSession) -> list[Any]:
             if current.is_idle(cfg.ui.idle_reset_seconds):
                 return reset(current)
             return [gr.skip()] * len(outputs)
@@ -256,8 +265,9 @@ def build_demo(
             reset, [session], outputs, js=CLOSE_CONFIRM_JS, show_progress="hidden", **visibility
         ).then(fn=None, js=SCROLL_TOP_JS)
         gr.Timer(IDLE_CHECK_SECONDS).tick(
-            on_idle, [session], outputs, show_progress="hidden", **visibility
+            on_idle, [session], [idle_marker], show_progress="hidden", **visibility
         )
+        idle_marker.change(on_idle_reset, [session], outputs, show_progress="hidden", **visibility)
         lang_button.click(fn=None, js=TOGGLE_LANG_JS)
         lang_toggle.input(
             on_language,

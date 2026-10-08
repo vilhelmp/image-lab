@@ -142,11 +142,11 @@ def test_new_visitor_resets_language_and_text(client: Client):
 
 
 def test_idle_reset_only_fires_after_interaction_and_idle_time(client: Client):
-    assert client.predict(api_name="/on_idle")[2] == NOOP
+    assert client.predict(api_name="/on_idle_reset")[2] == NOOP
     client.predict(api_name="/touch")
     time.sleep(1.2)
-    assert client.predict(api_name="/on_idle")[2]["value"] == ""
-    assert client.predict(api_name="/on_idle")[2] == NOOP
+    assert client.predict(api_name="/on_idle_reset")[2]["value"] == ""
+    assert client.predict(api_name="/on_idle_reset")[2] == NOOP
 
 
 def test_swap_toggles_between_the_image_before_and_after_a_chip(client: Client):
