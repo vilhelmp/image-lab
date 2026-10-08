@@ -61,19 +61,19 @@ edit_chips:
 photo_styles:
   felt_puppet:
     label: { sv: "Filtdocka", en: "Felt puppet" }
-    instruction: "Turn each person in this photo into a felt hand puppet version of themselves. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but make the skin and clothes look like fuzzy felt fabric with visible stitched seams, and give the eyes a slightly rounder googly puppet look."
+    instruction: "Turn each person in this photo into a felt hand puppet version of themselves. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but make the skin and clothes look like fuzzy felt fabric with visible stitched seams, and give the eyes a slightly rounder googly puppet look. Give the picture a warm, cheerful, friendly mood: bright soft lighting, lively colours and a relaxed, pleasant look on each face. Nothing dark, gloomy or angry."
   rag_doll:
     label: { sv: "Tygdocka", en: "Rag doll" }
-    instruction: "Turn each person in this photo into a stuffed fabric rag doll version of themselves. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but make the skin look like soft cloth with visible stitched seams, and give the eyes a button-eye look."
+    instruction: "Turn each person in this photo into a stuffed fabric rag doll version of themselves. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but make the skin look like soft cloth with visible stitched seams, and give the eyes a button-eye look. Give the picture a warm, cheerful, friendly mood: bright soft lighting, lively colours and a relaxed, pleasant look on each face. Nothing dark, gloomy or angry."
   clay:
     label: { sv: "Lera", en: "Clay" }
-    instruction: "Restyle this photo as a plasticine clay model of the same scene. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but make the skin, hair, clothes and background look like matte modelling clay with visible fingerprints. Same composition and the same number of people as in the photo."
+    instruction: "Restyle this photo as a plasticine clay model of the same scene. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but make the skin, hair, clothes and background look like matte modelling clay with visible fingerprints. Same composition and the same number of people as in the photo. Give the picture a warm, cheerful, friendly mood: bright soft lighting, lively colours and a relaxed, pleasant look on each face. Nothing dark, gloomy or angry."
   animated:
     label: { sv: "Animerad film", en: "Animated movie" }
-    instruction: "Redraw this photo as a frame from a polished 3D animated family movie. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but with smooth stylised skin, slightly larger eyes, vibrant colours and soft cinematic lighting."
+    instruction: "Redraw this photo as a frame from a polished 3D animated family movie. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but with smooth stylised skin, slightly larger eyes, vibrant colours and soft cinematic lighting. Give the picture a warm, cheerful, friendly mood: bright soft lighting, lively colours and a relaxed, pleasant look on each face. Nothing dark, gloomy or angry."
   comic:
     label: { sv: "Serietidning", en: "Comic book" }
-    instruction: "Turn this photo into a bold comic-book illustration: thick ink outlines, flat bright colours and halftone shading. Keep the pose and the composition recognisable."
+    instruction: "Turn this photo into a bold comic-book illustration: thick ink outlines, flat bright colours and halftone shading. Keep the pose and the composition recognisable. Give the picture a warm, cheerful, friendly mood: bright soft lighting, lively colours and a relaxed, pleasant look on each face. Nothing dark, gloomy or angry."
 
 access:
   enabled: true
