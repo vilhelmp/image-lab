@@ -47,6 +47,7 @@ class FeaturesSection(_Strict):
     help_me: bool = True
     surprise_me: bool = True
     edit_chips: bool = True
+    photo_studio: bool = True  # the code path exists; an admin switches the tab on at runtime
     qr_handoff: bool = False
     show_cost_to_visitors: bool = False
     allow_same_model_compare: bool = False
@@ -57,6 +58,7 @@ class UiSection(_Strict):
     history_size: int = Field(default=6, gt=0)
     styles: list[str]
     edit_chips: list[str]
+    photo_styles: list[str] = []
     challenge: LocalizedText
     reset_language_on_new_visitor: bool = True
 
@@ -105,6 +107,7 @@ class AppConfig(_Strict):
     ui: UiSection
     style_fragments: dict[str, str]
     edit_chips: dict[str, EditChip]
+    photo_styles: dict[str, EditChip] = {}
     access: AccessSection
     safety: SafetySection
     limits: LimitsSection
@@ -123,6 +126,14 @@ class AppConfig(_Strict):
         for key, chip in self.edit_chips.items():
             if not languages <= set(chip.label):
                 raise ValueError(f"edit chip '{key}' needs a label per language")
+        unknown_photo = [key for key in self.ui.photo_styles if key not in self.photo_styles]
+        if unknown_photo:
+            raise ValueError(f"photo_styles missing for ui.photo_styles: {unknown_photo}")
+        for key, style in self.photo_styles.items():
+            if not style.instruction:
+                raise ValueError(f"photo style '{key}' needs a static instruction")
+            if not languages <= set(style.label):
+                raise ValueError(f"photo style '{key}' needs a label per language")
         return self
 
 

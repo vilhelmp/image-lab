@@ -126,7 +126,7 @@ def build_create_tab(
                     for key in ui.styles
                 }
         with gr.Column(scale=1, min_width=340, elem_id="result-col"):
-            with gr.Column(elem_id="result-wrap"):
+            with gr.Column(elem_id="result-wrap", elem_classes=["result-wrap"]):
                 result = loc.make(
                     gr.Image,
                     lambda lang: {"label": t(lang, "create.result_label")},

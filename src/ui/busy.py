@@ -17,18 +17,28 @@ import gradio as gr
 
 from src.ui.components import Localizer
 
-Kind = Literal["create", "edit", "helper"]
-# Create and edit cover the result image; the helper buttons cover the text box they fill.
-TARGET_IDS: dict[str, str] = {"create": "result-wrap", "edit": "result-wrap", "helper": "idea-box"}
+Kind = Literal["create", "edit", "helper", "photo"]
+# Create, edit and photo cover a result image; the helper buttons cover the text box they fill.
+TARGET_IDS: dict[str, str] = {
+    "create": "result-wrap",
+    "edit": "result-wrap",
+    "helper": "idea-box",
+    "photo": "photo-result-wrap",
+}
+# The button the server disables while it works; the overlay clears when it is enabled again.
+WATCHED: dict[str, str] = {"photo": ".photo-style"}
+TEXT_CLASS: dict[str, str] = {"photo": "edit"}  # which of the two overlay texts to show
 NEVER_DISABLED_MS = 3_000
 FAILSAFE_MS = 75_000
 
 
 def start_js(kind: Kind) -> str:
     """Browser hook for `click(js=...)`: runs before the server call and passes its inputs on."""
+    watched = WATCHED.get(kind, ".primary-action")
+    css = TEXT_CLASS.get(kind, kind)
     return f"""(...args) => {{
   const wrap = document.getElementById('{TARGET_IDS[kind]}');
-  const button = document.querySelector('.primary-action');
+  const button = document.querySelector('{watched}');
   if (!wrap || !button) return args;
   window.__busyObserver?.disconnect();
   clearTimeout(window.__busyTimer);
@@ -41,7 +51,7 @@ def start_js(kind: Kind) -> str:
   }};
   let seenDisabled = button.disabled;
   wrap.classList.remove('busy-create', 'busy-edit', 'busy-helper');
-  wrap.classList.add('busy', 'busy-{kind}');
+  wrap.classList.add('busy', 'busy-{css}');
   window.__busyObserver = new MutationObserver(() => {{
     if (button.disabled) seenDisabled = true;
     else if (seenDisabled) stop();
@@ -53,8 +63,8 @@ def start_js(kind: Kind) -> str:
 }}"""
 
 
-def build_busy_overlay(loc: Localizer) -> Any:
-    """The overlay component; place it inside the `#result-wrap` column."""
+def build_busy_overlay(loc: Localizer, elem_id: str = "busy-overlay") -> Any:
+    """The overlay component; place it inside the result wrapper it covers."""
 
     def props(lang: str) -> dict[str, str]:
         create, edit = (html.escape(loc.t(lang, key)) for key in ("create.working", "edit.working"))
@@ -66,4 +76,4 @@ def build_busy_overlay(loc: Localizer) -> Any:
             )
         }
 
-    return loc.make(gr.HTML, props, elem_id="busy-overlay")
+    return loc.make(gr.HTML, props, elem_id=elem_id, elem_classes=["busy-overlay"])

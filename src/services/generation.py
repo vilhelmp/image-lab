@@ -11,14 +11,17 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 
 from src.config import EditChip, Settings
 from src.errors import (
     AppError,
+    BadImageError,
     BudgetReachedError,
+    ConsentRequiredError,
     CooldownError,
     EmptyInputError,
+    FeatureOffError,
     PausedError,
     ProviderError,
     ProviderTimeoutError,
@@ -29,9 +32,11 @@ from src.errors import (
 )
 from src.providers.base import Aspect, EditRequest, ImageRequest
 from src.providers.factory import Providers
+from src.services.flags import RuntimeFlags
 from src.services.helpers import HelperService
 from src.services.library import PromptLibrary
 from src.services.limits import Kind, LimitService
+from src.services.photo import prepare_photo
 from src.services.prompts import compose_prompt, style_fragment
 from src.services.safety import SafetyService, validate_input
 from src.services.spend import paid_call
@@ -42,7 +47,13 @@ logger = logging.getLogger(__name__)
 CREATE_TIMEOUT_SECONDS = 45
 EDIT_TIMEOUT_SECONDS = 60
 LIBRARY_MODEL_KEY = "library"
-INPUT_ERRORS = (EmptyInputError, TooLongInputError)
+INPUT_ERRORS = (
+    EmptyInputError,
+    TooLongInputError,
+    BadImageError,
+    ConsentRequiredError,
+    FeatureOffError,
+)
 LIMIT_ERRORS = (PausedError, BudgetReachedError, CooldownError, RateLimitedError)
 
 
@@ -58,6 +69,14 @@ class ChipRequest(BaseModel):
     chip_key: str
     image: bytes = Field(repr=False)  # the visitor's current image
     current_prompt: str = Field(repr=False)
+    lang: str = "sv"
+    device_hash: str | None = None
+
+
+class PhotoRequest(BaseModel):
+    style_key: str
+    photo: bytes = Field(repr=False)  # the visitor's own photo, exactly as uploaded
+    consent: StrictBool = False  # the visitor confirmed that the photo goes to external services
     lang: str = "sv"
     device_hash: str | None = None
 
@@ -81,12 +100,14 @@ class GenerationService:
         limits: LimitService,
         library: PromptLibrary | None = None,
         helpers: HelperService | None = None,
+        flags: RuntimeFlags | None = None,
     ) -> None:
         self._settings = settings
         self._providers = providers
         self._limits = limits
         self._library = library
         self._helpers = helpers
+        self._flags = flags or RuntimeFlags()
         self._safety = SafetyService(providers.moderator, providers.text, settings.config.safety)
         self._translator = Translator(providers.text, settings.config.safety.max_input_chars)
 
@@ -145,6 +166,37 @@ class GenerationService:
             EDIT_TIMEOUT_SECONDS,
             lambda: self._edit(req, chip, model_key, model.est_cost_usd),
         )
+
+    async def photo(self, req: PhotoRequest) -> GenerationResult:
+        """Restyle a visitor's own photo. The photo is checked before it is sent anywhere."""
+        style = self._settings.config.photo_styles.get(req.style_key)
+        active = self._settings.active_edit_model()
+        if style is None or active is None or self._providers.edit is None:
+            raise ProviderError  # an unknown style or no edit model: the UI never offers this
+        model_key, model = active
+        return await self._observed(
+            model_key,
+            req.device_hash,
+            EDIT_TIMEOUT_SECONDS,
+            lambda: self._restyle(req, style, model_key, model.est_cost_usd),
+        )
+
+    async def _restyle(
+        self, req: PhotoRequest, style: EditChip, model_key: str, est_cost: float
+    ) -> GenerationResult:
+        if not self._flags.photo_studio:
+            raise FeatureOffError
+        if not req.consent:
+            raise ConsentRequiredError
+        prepared = await asyncio.to_thread(prepare_photo, req.photo)
+        as_edit = ChipRequest(
+            chip_key=req.style_key,
+            image=prepared,
+            current_prompt="",
+            lang=req.lang,
+            device_hash=req.device_hash,
+        )
+        return await self._edit(as_edit, style, model_key, est_cost, check_source=True)
 
     async def _observed(
         self,
@@ -220,7 +272,13 @@ class GenerationService:
         )
 
     async def _edit(
-        self, req: ChipRequest, chip: EditChip, model_key: str, est_cost: float
+        self,
+        req: ChipRequest,
+        chip: EditChip,
+        model_key: str,
+        est_cost: float,
+        *,
+        check_source: bool = False,
     ) -> GenerationResult:
         edit_provider = self._providers.edit
         assert edit_provider is not None  # checked in edit()
@@ -228,6 +286,8 @@ class GenerationService:
 
         async def prepare() -> None:
             nonlocal instruction
+            if check_source:  # a visitor's own photo: moderate it before it leaves the app
+                await self._safety.check_image(req.image)
             if chip.llm:
                 if self._helpers is None:
                     raise ProviderError

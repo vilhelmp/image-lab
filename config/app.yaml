@@ -13,6 +13,7 @@ features:
   help_me: true
   surprise_me: true
   edit_chips: true
+  photo_studio: true # the Photo studio tab exists; the admin account switches it on (off at start)
   qr_handoff: false
   show_cost_to_visitors: false
   allow_same_model_compare: false
@@ -22,6 +23,7 @@ ui:
   history_size: 6
   styles: [photo, illustration, painting, 3d, comic, retro]
   edit_chips: [evening_light, more_playful, new_setting, as_painting, simpler]
+  photo_styles: [felt_puppet, rag_doll, clay, animated, comic]
   challenge: { sv: "En svensk stad år 2100", en: "A Swedish city in the year 2100" }
   reset_language_on_new_visitor: true
 
@@ -53,6 +55,25 @@ edit_chips:
   simpler:
     label: { sv: "Enklare", en: "Simpler" }
     instruction: "Make it simpler and cleaner, with fewer details and a plain background. Keep the subject the same."
+
+# Photo studio: a visitor's own photo, restyled by the edit model. Instructions are English and
+# describe a look, never a brand or a franchise. Keys listed in ui.photo_styles appear, in order.
+photo_styles:
+  felt_puppet:
+    label: { sv: "Filtdocka", en: "Felt puppet" }
+    instruction: "Turn the people in this photo into soft felt hand puppets: fuzzy felt fabric, big round googly eyes, wide expressive mouths and visible stitched seams, in a colourful puppet-show style. Keep the pose, the composition and the clothing colours recognisable."
+  rag_doll:
+    label: { sv: "Tygdocka", en: "Rag doll" }
+    instruction: "Turn the people in this photo into handmade stuffed fabric rag dolls: button eyes, visible stitching, patchwork cloth and yarn hair, in a cosy craft style. Keep the pose, the composition and the clothing colours recognisable."
+  clay:
+    label: { sv: "Lera", en: "Clay" }
+    instruction: "Turn this photo into a hand-sculpted plasticine clay stop-motion animation scene: matte clay texture with visible fingerprints, wide friendly mouths and warm studio lighting. Keep the pose and the composition recognisable."
+  animated:
+    label: { sv: "Animerad film", en: "Animated movie" }
+    instruction: "Turn this photo into a frame from a polished 3D animated family movie: stylised characters with large expressive eyes, smooth soft skin, vibrant colours and cinematic lighting. Keep the pose and the composition recognisable."
+  comic:
+    label: { sv: "Serietidning", en: "Comic book" }
+    instruction: "Turn this photo into a bold comic-book illustration: thick ink outlines, flat bright colours and halftone shading. Keep the pose and the composition recognisable."
 
 access:
   enabled: true

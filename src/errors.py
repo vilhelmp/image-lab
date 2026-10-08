@@ -76,6 +76,30 @@ class CheckFailedError(AppError):
     message_key = "error.generic"
 
 
+class BadImageError(AppError):
+    """An uploaded photo is not an image we can use (not an image, too big, unreadable)."""
+
+    code = "bad_image"
+    message_key = "photo.bad_image"
+    unbilled = True
+
+
+class ConsentRequiredError(AppError):
+    """The visitor did not confirm that the photo is sent to an external service."""
+
+    code = "consent_required"
+    message_key = "photo.need_consent"
+    unbilled = True
+
+
+class FeatureOffError(AppError):
+    """The photo studio is switched off (it is switched on from the admin account)."""
+
+    code = "feature_off"
+    message_key = "photo.off"
+    unbilled = True
+
+
 def error_code(exc: BaseException) -> str:
     return exc.code if isinstance(exc, AppError) else AppError.code
 

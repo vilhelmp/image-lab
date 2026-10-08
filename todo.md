@@ -104,6 +104,10 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 
 ## Phase 5: Compare
 
+- [x] Photo studio (2026-10-08): a tab with webcam or upload, five styles (felt puppet, rag doll, clay, animated movie, comic book; `photo_styles` in `app.yaml`, brand-free instructions), restyled by the edit model. Off at start; the admin Status tab switches it on (`RuntimeFlags`). Consent tick naming the external services, enforced by the server; the photo is moderated before it is sent (OpenAI), shrunk and stripped of EXIF; `max_file_size` 15 MB. Safety review done. Open: try it on a real iPad (camera permission, front or back camera, the direct `.hf.space` URL), judge the quality on real faces and tune the instructions (a bake-off with a real photo), decide whether the style names should stay brand-free
+
+## Phase 5: Compare
+
 - [ ] `src/ui/compare_tab.py`: shared text box, styles
 - [ ] Two model cards with friendly names and descriptions; block identical choice unless allowed
 - [ ] Concurrent generation with isolated failures

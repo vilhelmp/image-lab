@@ -14,6 +14,7 @@ from src.i18n import I18n
 from src.logging_setup import configure_logging
 from src.providers.factory import Providers, build_providers
 from src.services.access import build_auth
+from src.services.flags import RuntimeFlags
 from src.services.generation import GenerationService
 from src.services.helpers import HelperService
 from src.services.library import PromptLibrary, load_library, load_lock
@@ -23,6 +24,7 @@ from src.ui.admin_tab import build_admin_tab
 from src.ui.components import ApiVisibility, Localizer, merge, pack
 from src.ui.create_tab import build_create_tab
 from src.ui.how_tab import build_how_tab
+from src.ui.photo_tab import build_photo_tab
 from src.ui.theme import build_theme, load_css
 
 logger = logging.getLogger(__name__)
@@ -48,20 +50,20 @@ TOGGLE_DARK_JS = "() => document.body.classList.toggle('dark')"
 ZOOM_JS = """() => {
   if (window.__zoomReady) return;
   window.__zoomReady = true;
-  const box = () => document.getElementById('result-image');
+  const open = () => document.querySelector('#result-image.zoomed, #photo-result.zoomed');
   document.addEventListener('click', (e) => {
-    const el = box();
-    if (!el) return;
-    if (el.classList.contains('zoomed')) {
-      el.classList.remove('zoomed');
+    const zoomed = open();
+    if (zoomed) {
+      zoomed.classList.remove('zoomed');
       e.preventDefault();
       e.stopPropagation();
-    } else if (e.target.closest('#result-image img')) {
-      el.classList.add('zoomed');
+      return;
     }
+    const box = e.target.closest('#result-image, #photo-result');
+    if (box && e.target.closest('img')) box.classList.add('zoomed');
   }, true);
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') box()?.classList.remove('zoomed');
+    if (e.key === 'Escape') open()?.classList.remove('zoomed');
   });
 }"""
 SCROLL_TOP_JS = "() => window.scrollTo(0, 0)"
@@ -103,15 +105,17 @@ def build_demo(
     providers: Providers | None = None,
     limits: LimitService | None = None,
     library: PromptLibrary | None = None,
+    flags: RuntimeFlags | None = None,
 ) -> gr.Blocks:
     cfg = settings.config
     default_lang = cfg.app.default_language
     i18n = I18n.load(cfg.app.languages, default_lang)
     limits = limits or LimitService(cfg.limits)
+    flags = flags or RuntimeFlags()
     library = library or load_library(settings).with_images(load_lock())
     providers = providers or build_providers(settings)
     helpers = HelperService(settings, providers, limits, library)
-    service = GenerationService(settings, providers, limits, library, helpers)
+    service = GenerationService(settings, providers, limits, library, helpers, flags)
     loc = Localizer(i18n)
     t = loc.t
     api_visibility: ApiVisibility = "undocumented" if cfg.access.expose_api else "private"
@@ -169,10 +173,25 @@ def build_demo(
                     api_visibility=api_visibility,
                     library=library,
                 )
+            photo = (
+                build_photo_tab(
+                    demo=demo,
+                    settings=settings,
+                    service=service,
+                    flags=flags,
+                    loc=loc,
+                    session=session,
+                    device=device,
+                    api_visibility=api_visibility,
+                )
+                if cfg.features.photo_studio and cfg.ui.photo_styles and service.can_edit()
+                else None
+            )
             build_how_tab(loc=loc, session=session, api_visibility=api_visibility, touch=touch)
             build_admin_tab(
                 demo=demo,
                 limits=limits,
+                flags=flags if photo else None,
                 loc=loc,
                 session=session,
                 api_visibility=api_visibility,
@@ -201,13 +220,19 @@ def build_demo(
                 elem_classes=["new-visitor"],
             )
 
-        managed = list(dict.fromkeys([*loc.components, *create.managed]))
+        managed = list(
+            dict.fromkeys([*loc.components, *create.managed, *(photo.managed if photo else [])])
+        )
         outputs = [session, lang_toggle, tabs, *managed]
 
         def reset(current: VisitorSession) -> list[Any]:
             lang = default_lang if cfg.ui.reset_language_on_new_visitor else current.lang
             current.reset(lang)
-            merged = merge(loc.props(lang), create.reset_props())
+            merged = merge(
+                loc.props(lang),
+                create.reset_props(),
+                photo.reset_props() if photo else {},
+            )
             return [
                 current,
                 gr.update(value=lang),
@@ -285,6 +310,7 @@ def main() -> None:
         ssr_mode=False,
         auth=auth,
         auth_message=login_message(i18n, settings.config.app.languages),
+        max_file_size="15mb",  # a photo upload is cut off here, before it reaches the app
         footer_links=[],
         mcp_server=False,
     )
