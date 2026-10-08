@@ -13,7 +13,7 @@ Phases follow spec §20. Phase 2 must be finished before real API keys are added
 - [x] README.md with HF Spaces frontmatter (`sdk_version` = gradio pin, `python_version` = `.python-version`)
 - [x] `scripts/export_requirements.sh` fallback if `uv export --prune` is unavailable (not needed: `--prune` works in uv 0.8.12)
 - [x] Generate `requirements.txt` (never edit by hand)
-- [x] GitHub Actions: `uv sync --locked`, `pytest` with fakes, requirements diff check, version-pin check (spec §18.4). First green run: CI #1 on `vilhelmp/image-lab`, commit d8ebb7a
+- [x] GitHub Actions: `uv sync --locked`, `pytest` with fakes, requirements diff check, version-pin check (spec §18.4). First green run: CI #1 on `vilhelmp/image-lab`, commit d8ebb7a. CI failed from the LFS commit on because checkout did not fetch LFS files; `lfs: true` added 2026-10-01, so confirm the next run is green
 - [x] Confirm the pinned Gradio 6.28.0 and Python are supported on ZeroGPU (docs list Gradio 4+, Python 3.12.12 and 3.10.13). If HF does not accept `python_version: "3.12"`, pin `3.12.12` in `.python-version` and the README, and check the pin script still passes (spec §18.3)
 
 ## Phase 1: Skeleton (runs locally, no keys)
@@ -93,16 +93,17 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 ## Phase 4: Edit chips
 
 - [x] Edit adapter over HF `image_to_image`: `HFEditProvider` (shares `HFRunner` with the image adapter), `EditModel.hf_provider`, `build_edit` in the factory (None until an edit model has `hf_model`). `scripts/bakeoff.py` compares models (t2i or edit) with latency and a contact sheet
-- [ ] Choose the edit model from the bake-off and set it in `config/models.yaml`. Bake-off 2026-10-01 on one cached example, three chips: klein-4B 3.9 to 5.2 s, klein-9B 4.1 to 5.8 s, Kontext-dev 8.6 to 9.4 s, Qwen-Image-Edit-2511 13.9 to 14.8 s. By eye klein-4B (Apache-2.0) is among the best; Qwen is better only on "as a painting" (thick brush strokes), which a more specific chip instruction may fix. Decision: klein-4B on fal-ai (`fal-ai/flux-2/klein/4b/distilled/edit`). Candidates, all live on fal-ai through HF with task image-to-image (checked 2026-09-30): `black-forest-labs/FLUX.1-Kontext-dev` (fal-ai/flux-kontext/dev), `black-forest-labs/FLUX.2-klein-9B` (fal-ai/flux-2/klein/9b/edit), `Qwen/Qwen-Image-Edit` (fal-ai/qwen-image-edit). Next: `HFEditProvider` over `InferenceClient.image_to_image` plus a `try_edit` script, then measure latency, price and quality of each and check licences before choosing. Licences (HF model cards, 2026-10-01): Apache-2.0 are FLUX.1-schnell, Z-Image-Turbo, Qwen-Image, Qwen-Image-Edit(-2511) and FLUX.2-klein-4B; non-commercial are FLUX.1-dev, FLUX.1-Kontext-dev, FLUX.2-klein-9B and Ideogram 4; Krea-2-Turbo has its own community licence. Prefer Apache models for anything visitors use (the FLUX dev licence lists use "in direct interactions with end users" as not non-commercial); `quality` (FLUX.1-dev) is configured but unused until Compare, so replace or confirm it before then. Edit candidate to test first: FLUX.2-klein-4B (Apache, about 4 s)
+- [x] Choose the edit model from the bake-off and set it in `config/models.yaml`. Decision: klein-4B on fal-ai (`fal-ai/flux-2/klein/4b/distilled/edit`, Apache-2.0). Bake-off 2026-10-01 on one cached example, three chips: klein-4B 3.9 to 5.2 s, klein-9B 4.1 to 5.8 s, Kontext-dev 8.6 to 9.4 s, Qwen-Image-Edit-2511 13.9 to 14.8 s. By eye klein-4B is among the best; Qwen is better only on "as a painting", which a more specific chip instruction may fix. Licences (HF model cards, 2026-10-01): Apache-2.0 are FLUX.1-schnell, Z-Image-Turbo, Qwen-Image, Qwen-Image-Edit(-2511) and FLUX.2-klein-4B; non-commercial are FLUX.1-dev, FLUX.1-Kontext-dev, FLUX.2-klein-9B and Ideogram 4; Krea-2-Turbo has its own community licence
 - [x] Chip config in `app.yaml` (`edit_chips`: label per language, static `instruction` or `llm: true`), static instructions, and LLM-picked "new setting" (`HelperService.edit_instruction`, moderated and policy-checked)
 - [x] Chips send current image plus instruction to the edit model (`GenerationService.edit`, `src/ui/chips.py`); previous image goes to history. Create and edit share `spend.paid_call`; output goes through `check_image`; a result that arrives after "New visitor" is dropped (session epoch). Edit model: FLUX.2-klein-4B on fal-ai
 - [ ] Fallback to rewrite and regenerate labelled "Ny version" when no edit model (chips are hidden when there is no edit provider, so the fallback is not built yet)
 - [ ] "Another version" button
 - [ ] Recent images strip (last 6 per visitor)
-- [ ] Post-generation layout: large image, collapsed inputs
+- [x] Post-generation layout: replaced by a two-column Create tab (controls left, image and edit panel right, fixed slots so nothing jumps); the edit panel appears after the first image
+- [x] Before/after switch for the last edit (`VisitorSession.previous`, `Switch before / after`)
 - [x] Tests for the edit path and moderation of chip output (`tests/test_edit_chips.py`, smoke tests). Open: an edit case in `tests/safety_cases.yaml`; check the klein edit cost on the billing page (estimate 0.01); the second "new setting" tap describes the original scene because an edited image keeps the original prompt
 
-## Phase 5: Compare
+## Phase 4b: Photo studio (extra, not in the spec)
 
 - [x] Photo studio (2026-10-08): a tab with webcam or upload, five styles (felt puppet, rag doll, clay, animated movie, comic book; `photo_styles` in `app.yaml`, brand-free instructions), restyled by the edit model. Off at start; the admin Status tab switches it on (`RuntimeFlags`). Consent tick naming the external services, enforced by the server; the photo is moderated before it is sent (OpenAI), shrunk and stripped of EXIF; `max_file_size` 15 MB. Safety review done. Open: try it on a real iPad (camera permission, front or back camera, the direct `.hf.space` URL), judge the quality on real faces and tune the instructions (a bake-off with a real photo), decide whether the style names should stay brand-free
 
@@ -119,13 +120,16 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 ## Phase 6: Polish
 
 - [x] Ideas popup: 7 themed groups of example prompts (`config/prompt_library.yaml`), tap to fill the text box; an unchanged prompt with no style shows its cached image instantly and free (`assets/library/*.webp`, tied to the texts by `config/prompt_library.lock.json`). Built with `scripts/build_library.py`
-- [ ] Ideas popup: review the contact sheet of all 37 images by eye before committing; check the popup on a real iPad in landscape and portrait
+- [ ] Ideas popup: check the popup on a real iPad in landscape and portrait. The contact sheet of the 37 images was reviewed and committed; on small screens the categories are now wrapping buttons and each example has its text under the picture (2026-10-08)
 - [ ] Ideas popup, later: optional per-prompt model (for example `detailed`) for the photo examples; record cached hits in the admin counts; Help me and Surprise me could draw from the library
 
 - [ ] Style thumbnails in `assets/style_thumbs/`
-- [ ] iPad CSS: 48 px tap targets, landscape and portrait, light and dark
-- [ ] "How does it work?" panel: four steps, prompt anatomy, "What did the model receive?"
-- [ ] Status messages while generating; buttons disabled
+- [ ] iPad CSS: tap targets are now at least 44 px (Apple's minimum), light and dark, a lighter design with smaller text and pill buttons, a restyled login page; checked in a desktop browser only. Open: landscape and portrait on a real iPad
+- [x] How it works tab (replaces the accordion): a pipeline of eight steps lit one at a time with Next and Back, colour-coded by who does the work (you, plain code, language model, image model, safety check)
+- [ ] "What did the model receive?": show the visitor's final English prompt (and the translation) in the How it works tab or under the image. The final prompt is already stored per image
+- [x] Status messages while generating; buttons disabled (a busy overlay on the result for Create, edits and photos, and on the text box for Help me and Give me an idea)
+- [x] Tap the image to zoom; Enter in the text box creates; New visitor asks for confirmation; language and light/dark are two small header buttons
+- [x] Clearer labels and section headings (examples, improve my text, give me an idea, style, edit panel)
 - [ ] Latency tuning against spec §7 targets
 - [ ] Test on a real iPad Safari with the pinned Gradio version, the direct `.hf.space` URL and the hardware used on the day
 
@@ -140,9 +144,10 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 
 ## Workshop readiness (spec §19 and §21)
 
-- [ ] Hosting decision from Phase 1b still holds (free ZeroGPU, or PRO with the Space switched to CPU Basic)
+- [ ] Hosting decision from Phase 1b still holds. 2026-10-08: the account is now PRO, so switch the Space to CPU Basic (the app never uses a GPU), then run one Create and one edit. Free hardware sleeps after 48 h: open the Space about 15 minutes before, or use CPU upgrade ($0.03/hour) for the day
 - [ ] Prepaid credits loaded, auto-recharge off
-- [ ] Fal vs HF backend comparison on the same 20 prompts; backend chosen
+- [ ] Fal vs HF backend comparison on the same 20 prompts; backend chosen. Decision so far: `image_backend: hf` (fal-ai through Hugging Face); `fal.py` is not built and is optional
+- [x] Image model: keep `fast` (FLUX.1-schnell, Apache-2.0). 2026-10-08 bake-off against `quality` (FLUX.1-dev): 5.0 to 5.3 s against 5.8 to 6.4 s, about 13 times the price ($0.04 against $0.003), a modest visual gain, and a non-commercial licence. The `quality` model stays configured and unused
 - [x] Swedish prompt quality: translation to English is on for all image models (a Swedish fox prompt gave no fox); re-check on the Space after deploy
 - [ ] Five devices doing Compare for 10 minutes; admin tab watched
 - [ ] Incognito browser blocked without password
@@ -162,3 +167,6 @@ Record decisions, blockers and open questions here.
 - 2026-09-30: First real safety-cases run (`python -m scripts.run_safety_cases`): every injection, real-person and character case behaved, and each redirect returned a usable alternative after the policy prompt was changed to forbid naming the original. Known issue: OpenAI moderation flags the Swedish "Skjuta iväg en raket till månen" as violence ("skjuta" = shoot), so visitors typing it get the friendly refusal. Accepted for now; watch for more Swedish false positives in the workshop rehearsal. Also note: a restricted OpenAI key needs Chat completions and Moderations both set to Request; a key lacking Chat completions gave `missing_scope`.
 - 2026-09-30: Phase 3 safety review (`@safety-reviewer`) found one HIGH (a contradictory policy verdict such as allowed with a category was accepted), now fixed with tests, plus request deadline, alternative policy check, error typing and `.env` loader fixes. Open risks: OpenAI image moderation only covers sexual, violence and self-harm, so hate imagery, minors-specific sexual content, harassment, real-person likeness and trademarked characters in OUTPUT images rely on the prompt checks and the image provider's own safety settings; consider lower `category_scores` thresholds after the first real safety-cases run. The parent-folder `.env` may be shared with other projects, so check the startup log line for which file and names were read.
 - 2026-09-29: The first load test (10 visitors, pauses of 0-3 s, about 2.3 Creates/s from one IP) got 21% failures, all HTTP 429 from the `.hf.space` edge (image downloads and the event stream). The paced run (pauses of 0-20 s, about 0.8 Creates/s) had none. Unknown whether HF throttles per IP; venue iPads will likely share one IP, so watch for 429s in the Phase 5 test with several devices.
+- 2026-10-08: A colleague on Edge lost the typed prompt after a Create, and one Swedish prompt was refused once and passed the second time. Neither could be reproduced locally. The prompt is now sent back to the text box when Create finishes, and the logs say which check refused (`refusal stage=policy`, `text_moderation` or `image_moderation`, with a code only). If it happens again, read the Space log line next to that request. Idea if it is the image check: one automatic retry with a new image instead of showing the refusal (costs one more image).
+- 2026-10-08: The Compare tab (Phase 5) needs two models worth comparing. With `fast` kept and FLUX.1-dev not cleared for visitors, a Compare would have to use an Apache-2.0 alternative such as Qwen-Image (`text_expert`) or Z-Image-Turbo. Decide whether Compare is worth building before the workshop; the rest of the app does not depend on it.
+- 2026-10-08: Photo studio safety review: the consent text must name every external service (OpenAI moderation, Hugging Face, the image provider), and the tick belongs to one photo (it resets when the photo changes). Gradio's own upload preprocessing rejects a non-image before our code runs, so a visitor may see Gradio's generic error for that.
