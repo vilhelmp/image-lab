@@ -54,6 +54,32 @@ def test_a_small_photo_keeps_its_size():
     assert Image.open(io.BytesIO(prepare_photo(jpeg((400, 300))))).size == (400, 300)
 
 
+def test_a_phone_photo_of_48_megapixels_is_accepted():
+    result = Image.open(io.BytesIO(prepare_photo(jpeg((8000, 6000), orientation=6))))
+    assert max(result.size) <= photo.MAX_SIDE and result.size[0] < result.size[1]  # turned upright
+
+
+def test_a_huge_png_is_refused_because_it_cannot_be_decoded_cheaply():
+    buffer = io.BytesIO()
+    Image.new("L", (6000, 5000)).save(buffer, format="PNG")  # 30 MP, tiny file
+    with pytest.raises(BadImageError):
+        prepare_photo(buffer.getvalue())
+
+
+def test_a_panorama_jpeg_is_refused_even_when_it_decodes_reduced():
+    with pytest.raises(BadImageError):
+        prepare_photo(jpeg((30000, 3000)))  # 90 MP, short side too small to reduce
+
+
+def test_a_refused_photo_is_logged_by_reason_only(caplog, tmp_path):
+    secret_name = tmp_path / "my-face-secret.jpg"
+    secret_name.write_bytes(b"not a picture")
+    with caplog.at_level("WARNING"), pytest.raises(BadImageError):
+        prepare_photo(secret_name.read_bytes())
+    assert "reason=decode_UnidentifiedImageError" in caplog.text
+    assert "secret" not in caplog.text and "not a picture" not in caplog.text
+
+
 def test_an_ipad_portrait_photo_is_turned_upright_and_loses_its_metadata():
     prepared = Image.open(io.BytesIO(prepare_photo(jpeg((200, 100), orientation=6))))
     assert prepared.size == (100, 200)
