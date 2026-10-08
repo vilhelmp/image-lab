@@ -61,16 +61,16 @@ edit_chips:
 photo_styles:
   felt_puppet:
     label: { sv: "Filtdocka", en: "Felt puppet" }
-    instruction: "Turn the people in this photo into soft felt hand puppets: fuzzy felt fabric, big round googly eyes, wide expressive mouths and visible stitched seams, in a colourful puppet-show style. Keep the pose, the composition and the clothing colours recognisable."
+    instruction: "Turn each person in this photo into a felt hand puppet version of themselves. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but make the skin and clothes look like fuzzy felt fabric with visible stitched seams, and give the eyes a slightly rounder googly puppet look."
   rag_doll:
     label: { sv: "Tygdocka", en: "Rag doll" }
-    instruction: "Turn the people in this photo into handmade stuffed fabric rag dolls: button eyes, visible stitching, patchwork cloth and yarn hair, in a cosy craft style. Keep the pose, the composition and the clothing colours recognisable."
+    instruction: "Turn each person in this photo into a stuffed fabric rag doll version of themselves. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but make the skin look like soft cloth with visible stitched seams, and give the eyes a button-eye look."
   clay:
     label: { sv: "Lera", en: "Clay" }
-    instruction: "Turn this photo into a hand-sculpted plasticine clay stop-motion animation scene: matte clay texture with visible fingerprints, wide friendly mouths and warm studio lighting. Keep the pose and the composition recognisable."
+    instruction: "Turn this photo into a hand-sculpted plasticine clay stop-motion scene, with each person as a clay figurine version of themselves. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but make everything look like matte modelling clay with visible fingerprints."
   animated:
     label: { sv: "Animerad film", en: "Animated movie" }
-    instruction: "Turn this photo into a frame from a polished 3D animated family movie: stylised characters with large expressive eyes, smooth soft skin, vibrant colours and cinematic lighting. Keep the pose and the composition recognisable."
+    instruction: "Redraw this photo as a frame from a polished 3D animated family movie. Keep each person's face shape, hairstyle, hair colour, expression, pose, clothes and background, so they are still clearly recognisable, but with smooth stylised skin, slightly larger eyes, vibrant colours and soft cinematic lighting."
   comic:
     label: { sv: "Serietidning", en: "Comic book" }
     instruction: "Turn this photo into a bold comic-book illustration: thick ink outlines, flat bright colours and halftone shading. Keep the pose and the composition recognisable."
