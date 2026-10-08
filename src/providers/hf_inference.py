@@ -18,6 +18,7 @@ from typing import Any
 import httpx
 from huggingface_hub import InferenceClient
 from huggingface_hub.errors import HfHubHTTPError, InferenceTimeoutError
+from huggingface_hub.utils import is_pillow_available
 from PIL import Image
 
 from src.config import Settings
@@ -33,6 +34,10 @@ from src.providers.base import (
 from src.providers.http import UNBILLED_RETRY_STATUSES, Retry, run_with_retries
 
 logger = logging.getLogger(__name__)
+
+# The SDK caches its Pillow check on first use, and threads that ask at the same time see "not
+# installed" (an ImportError on the first burst of requests). Ask once, before any thread does.
+is_pillow_available()
 
 IMAGE_TIMEOUT_SECONDS = 45.0  # spec section 8: hard timeout for Create
 EDIT_TIMEOUT_SECONDS = 60.0  # spec section 8: hard timeout for an edit chip
