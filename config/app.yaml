@@ -61,16 +61,16 @@ edit_chips:
 photo_styles:
   felt_puppet:
     label: { sv: "Filtdocka", en: "Felt puppet" }
-    instruction: "Turn the people in this photo into soft felt hand puppets: fuzzy felt fabric, big round googly eyes, wide expressive mouths and visible stitched seams, in a colourful puppet-show style. Keep the pose, the composition and the clothing colours recognisable."
+    instruction: "Replace each person in this photo with a hand puppet character made of fuzzy felt and foam: a large soft rounded head, big ping-pong-ball eyes with small black pupils, a wide hinged mouth, bright flat felt skin colour and a tuft of yarn hair. Each puppet wears the same clothes in the same colours, in the same pose and place. It must look like a puppet, not a human."
   rag_doll:
     label: { sv: "Tygdocka", en: "Rag doll" }
-    instruction: "Turn the people in this photo into handmade stuffed fabric rag dolls: button eyes, visible stitching, patchwork cloth and yarn hair, in a cosy craft style. Keep the pose, the composition and the clothing colours recognisable."
+    instruction: "Replace each person in this photo with a handmade stuffed fabric rag doll: a round cloth face with button eyes and a small stitched smile, visible seams and patches, yarn hair and a soft squashy body. Same clothing colours, same pose, same place. It must look like a doll, not a human."
   clay:
     label: { sv: "Lera", en: "Clay" }
-    instruction: "Turn this photo into a hand-sculpted plasticine clay stop-motion animation scene: matte clay texture with visible fingerprints, wide friendly mouths and warm studio lighting. Keep the pose and the composition recognisable."
+    instruction: "Redraw this photo as a hand-sculpted plasticine clay stop-motion scene: each person becomes a clay figurine with a big smooth round head, bead-like eyes, a wide friendly smile and fingerprints in matte modelling clay, in a small handmade clay set. Same pose and clothing colours."
   animated:
     label: { sv: "Animerad film", en: "Animated movie" }
-    instruction: "Turn this photo into a frame from a polished 3D animated family movie: stylised characters with large expressive eyes, smooth soft skin, vibrant colours and cinematic lighting. Keep the pose and the composition recognisable."
+    instruction: "Redraw this photo as a frame from a polished 3D animated family movie: each person becomes a stylised cartoon character with a slightly oversized head, big expressive eyes, simplified smooth features and vibrant colours, with soft cinematic lighting. Same pose, clothes and place. It must look animated, not like a photo."
   comic:
     label: { sv: "Serietidning", en: "Comic book" }
     instruction: "Turn this photo into a bold comic-book illustration: thick ink outlines, flat bright colours and halftone shading. Keep the pose and the composition recognisable."
