@@ -20,7 +20,9 @@ def build_admin_tab(
     *,
     demo: gr.Blocks,
     limits: LimitService,
-    flags: RuntimeFlags | None,
+    flags: RuntimeFlags,
+    photo_studio: bool,
+    high_quality: bool,
     loc: Localizer,
     session: gr.State,
     api_visibility: ApiVisibility,
@@ -34,7 +36,14 @@ def build_admin_tab(
         summary = gr.Markdown()
         paused = loc.make(gr.Checkbox, lambda lang: {"label": t(lang, "admin.pause")})
         photo_open = (
-            loc.make(gr.Checkbox, lambda lang: {"label": t(lang, "admin.photo")}) if flags else None
+            loc.make(gr.Checkbox, lambda lang: {"label": t(lang, "admin.photo")})
+            if photo_studio
+            else None
+        )
+        quality_on = (
+            loc.make(gr.Checkbox, lambda lang: {"label": t(lang, "admin.quality")})
+            if high_quality
+            else None
         )
         ask_reset = loc.make(gr.Button, lambda lang: {"value": t(lang, "admin.reset")})
         with gr.Column(visible=False) as confirm:
@@ -65,29 +74,39 @@ def build_admin_tab(
             ]
         )
 
-    def photo_state() -> list:
-        return [flags.photo_studio] if flags else []
+    def flag_state() -> list:
+        state = []
+        if photo_open is not None:
+            state.append(flags.photo_studio)
+        if quality_on is not None:
+            state.append(flags.high_quality)
+        return state
 
     def on_load(current: VisitorSession, request: gr.Request):
         if not is_admin(request.username):
-            return [gr.skip()] * (4 + len(photo_state()))
+            return [gr.skip()] * (4 + len(flag_state()))
         return (
             gr.update(visible=True),
             gr.Timer(active=True),
             render(current.lang),
             limits.paused,
-            *photo_state(),
+            *flag_state(),
         )
 
     def on_refresh(current: VisitorSession, request: gr.Request):
         if not is_admin(request.username):
-            return [gr.skip()] * (2 + len(photo_state()))
-        return render(current.lang), limits.paused, *photo_state()
+            return [gr.skip()] * (2 + len(flag_state()))
+        return render(current.lang), limits.paused, *flag_state()
 
     def on_photo(value: bool, request: gr.Request):
-        if flags is not None and is_admin(request.username):
+        if is_admin(request.username):
             flags.set_photo_studio(bool(value))
             logger.info("admin action: photo studio %s", "opened" if value else "closed")
+
+    def on_quality(value: bool, request: gr.Request):
+        if is_admin(request.username):
+            flags.set_high_quality(bool(value))
+            logger.info("admin action: high-quality model %s", "on" if value else "off")
 
     def on_pause(value: bool, current: VisitorSession, request: gr.Request):
         if not is_admin(request.username):
@@ -101,12 +120,14 @@ def build_admin_tab(
             return gr.update(visible=False), render(current.lang)
         return gr.skip(), gr.skip()
 
-    extra = [photo_open] if photo_open is not None else []
+    extra = [box for box in (photo_open, quality_on) if box is not None]
     demo.load(on_load, [session], [tab, timer, summary, paused, *extra], **visibility)
     timer.tick(on_refresh, [session], [summary, paused, *extra], **visibility)
     paused.input(on_pause, [paused, session], [summary], **visibility)
     if photo_open is not None:
         photo_open.input(on_photo, [photo_open], None, **visibility)
+    if quality_on is not None:
+        quality_on.input(on_quality, [quality_on], None, **visibility)
     ask_reset.click(lambda: gr.update(visible=True), None, [confirm], **visibility)
     no.click(lambda: gr.update(visible=False), None, [confirm], **visibility)
     yes.click(on_confirm_reset, [session], [confirm, summary], **visibility)

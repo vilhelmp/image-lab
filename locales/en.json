@@ -101,6 +101,7 @@
   "error.too_long": "That description is too long. Please make it a bit shorter.",
   "admin.pause": "Pause image creation",
   "admin.photo": "Photo studio is open to visitors",
+  "admin.quality": "High-quality model for new images (slower, costs more)",
   "admin.paused": "Image creation is **paused**.",
   "admin.running": "Image creation is running.",
   "admin.usage": "Images: {used} of {max_images}. Estimated spend: {spend} of {max_cost} USD.",

@@ -145,7 +145,10 @@ class GenerationService:
     async def create(self, req: CreateRequest) -> GenerationResult:
         if example := await self._library_example(req):
             return example
-        model_key = self._settings.models.defaults.create_model
+        defaults = self._settings.models.defaults
+        model_key = defaults.create_model
+        if self._flags.high_quality and defaults.high_quality_model:
+            model_key = defaults.high_quality_model
         return await self._observed(
             model_key,
             req.device_hash,

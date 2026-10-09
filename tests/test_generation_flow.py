@@ -8,12 +8,14 @@ from src.errors import (
     AppError,
     CheckFailedError,
     EmptyInputError,
+    ProviderError,
     ProviderTimeoutError,
     SafetyRefusalError,
 )
 from src.providers.factory import Providers
 from src.providers.fake import FakeImageProvider, FakeModerator
 from src.services import generation
+from src.services.flags import RuntimeFlags
 from src.services.generation import CreateRequest, GenerationService
 from src.services.limits import LimitService
 
@@ -31,6 +33,56 @@ async def test_create_returns_png_and_composed_prompt(dev_settings, fake_provide
     assert result.final_prompt.startswith("A cat, retro 1970s poster")
     assert fake_providers.moderator.text_calls == 1
     assert fake_providers.moderator.image_calls == 1
+
+
+async def test_the_admin_switch_makes_create_use_the_high_quality_model(
+    dev_settings, fake_providers
+):
+    flags = RuntimeFlags()
+    limits = LimitService(dev_settings.config.limits)
+    service = GenerationService(dev_settings, fake_providers, limits, flags=flags)
+    defaults = dev_settings.models.defaults
+    assert defaults.high_quality_model and defaults.high_quality_model != defaults.create_model
+    first = await service.create(CreateRequest(text="A cat", device_hash="a"))
+    assert first.model_key == defaults.create_model
+    flags.set_high_quality(True)
+    result = await service.create(CreateRequest(text="A dog", device_hash="b"))
+    assert result.model_key == defaults.high_quality_model
+    assert fake_providers.moderator.text_calls == 2 and fake_providers.moderator.image_calls == 2
+    flags.set_high_quality(False)
+    last = await service.create(CreateRequest(text="A fox", device_hash="c"))
+    assert last.model_key == defaults.create_model
+
+
+async def test_the_high_quality_model_reserves_its_own_higher_cost(dev_settings, fake_providers):
+    providers = Providers(
+        image=FakeImageProvider(error=ProviderError()),  # a billed failure keeps the estimate
+        edit=None,
+        text=fake_providers.text,
+        moderator=fake_providers.moderator,
+    )
+    limits = LimitService(dev_settings.config.limits)
+    service = GenerationService(
+        dev_settings, providers, limits, flags=RuntimeFlags(high_quality=True)
+    )
+    with pytest.raises(ProviderError):
+        await service.create(CreateRequest(text="A cat"))
+    quality = dev_settings.models.image_models[dev_settings.models.defaults.high_quality_model]
+    assert limits.snapshot().spend_usd == pytest.approx(quality.est_cost_usd)
+
+
+async def test_a_blocked_prompt_is_refused_with_the_high_quality_model_too(
+    dev_settings, fake_providers
+):
+    service = GenerationService(
+        dev_settings,
+        fake_providers,
+        LimitService(dev_settings.config.limits),
+        flags=RuntimeFlags(high_quality=True),
+    )
+    with pytest.raises(SafetyRefusalError):
+        await service.create(CreateRequest(text="a [blocked] idea"))
+    assert fake_providers.image.calls == []
 
 
 async def test_blocked_prompt_never_reaches_the_image_provider(dev_settings, fake_providers):

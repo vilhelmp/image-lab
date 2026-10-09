@@ -6,6 +6,7 @@ from gradio_client import Client
 from app import build_demo
 from src.config import Settings, load_settings
 from src.services.access import ADMIN_USER, WORKSHOP_USER, build_auth, is_admin, password_problems
+from src.services.flags import RuntimeFlags
 from src.services.limits import LimitService
 
 WORKSHOP_PW = "workshop-password-1234567"
@@ -118,6 +119,43 @@ def test_pause_works_for_admin_only(secured):
     assert limits.paused is True
     admin.predict(False, api_name="/on_pause")
     assert limits.paused is False
+
+
+def test_the_admin_tab_works_with_only_the_quality_switch(dev_settings: Settings, fake_providers):
+    dev_settings.config.access.expose_api = True
+    dev_settings.config.features.photo_studio = False  # so the quality box is the only extra one
+    demo = build_demo(dev_settings, fake_providers, flags=RuntimeFlags(high_quality=True))
+    demo.launch(
+        prevent_thread_lock=True,
+        quiet=True,
+        auth=build_auth(GOOD, enabled=True, development_mode=True),
+    )
+    try:
+        admin = Client(demo.local_url, auth=(ADMIN_USER, ADMIN_PW), verbose=False)
+        summary, paused, quality = admin.predict(api_name="/on_refresh")
+        assert quality is True and paused is False and "Bilder:" in summary
+    finally:
+        demo.close()
+
+
+def test_the_quality_switch_works_for_admin_only(dev_settings: Settings, fake_providers):
+    dev_settings.config.access.expose_api = True
+    flags = RuntimeFlags()
+    demo = build_demo(dev_settings, fake_providers, flags=flags)
+    demo.launch(
+        prevent_thread_lock=True,
+        quiet=True,
+        auth=build_auth(GOOD, enabled=True, development_mode=True),
+    )
+    try:
+        visitor = Client(demo.local_url, auth=(WORKSHOP_USER, WORKSHOP_PW), verbose=False)
+        admin = Client(demo.local_url, auth=(ADMIN_USER, ADMIN_PW), verbose=False)
+        visitor.predict(True, api_name="/on_quality")
+        assert flags.high_quality is False
+        admin.predict(True, api_name="/on_quality")
+        assert flags.high_quality is True
+    finally:
+        demo.close()
 
 
 def test_reset_counters_works_for_admin_only(secured):

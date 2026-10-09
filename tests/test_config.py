@@ -43,6 +43,14 @@ def test_invalid_default_model_rejected(make_settings):
         make_settings(models=bad_default)
 
 
+def test_invalid_high_quality_model_rejected(make_settings):
+    def bad(models):
+        models["defaults"]["high_quality_model"] = "does_not_exist"
+
+    with pytest.raises(ValidationError, match="high_quality_model"):
+        make_settings(models=bad)
+
+
 def test_disabled_default_model_rejected(make_settings):
     def disable(models):
         models["image_models"]["fast"]["enabled"] = False

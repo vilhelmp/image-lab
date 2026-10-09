@@ -61,7 +61,7 @@ Prepaid provider credit is the hard spending cap: the app's own budget counters 
 
 ## Model choice
 
-`config/models.yaml` lists the models. `defaults.create_model` picks the one visitors get for Create. The default is `fast` (FLUX.1-schnell, Apache-2.0, about $0.003 per image). A more detailed model, `quality` (FLUX.1-dev, about $0.04 per image and a non-commercial licence), is configured but not used; set `create_model: quality` to switch to it.
+`config/models.yaml` lists the models. `defaults.create_model` picks the one visitors get for Create. The default is `fast` (FLUX.1-schnell, Apache-2.0, about $0.003 per image). A more detailed model, `quality` (FLUX.1-dev, about $0.04 per image and a non-commercial licence), is configured as `defaults.high_quality_model`. The admin account switches it on for new images with the "High-quality model" tick on the Status tab; it starts off and a restart turns it off again. To make it the default instead, set `create_model: quality`.
 
 ## Privacy
 

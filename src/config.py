@@ -170,6 +170,7 @@ class Defaults(_Strict):
     compare_a: str
     compare_b: str
     text_model: str = "helper"
+    high_quality_model: str | None = None  # what Create uses while the admin switch is on
 
 
 class ModelsConfig(_Strict):
@@ -199,6 +200,11 @@ class Settings(_Strict):
                 raise ValueError(
                     f"defaults.{name} '{key}' is not an enabled, available image model"
                 )
+        if defaults.high_quality_model and defaults.high_quality_model not in active:
+            raise ValueError(
+                f"defaults.high_quality_model '{defaults.high_quality_model}' "
+                "is not an enabled, available image model"
+            )
         if (
             defaults.compare_a == defaults.compare_b
             and not self.config.features.allow_same_model_compare

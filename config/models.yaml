@@ -55,6 +55,7 @@ moderation_model: "omni-moderation-latest" # free; text and image
 
 defaults:
   create_model: fast
+  high_quality_model: quality # used by Create while the admin switch "High-quality model" is on
   edit_model: default_edit
   compare_a: fast
   compare_b: quality

@@ -193,7 +193,9 @@ def build_demo(
             build_admin_tab(
                 demo=demo,
                 limits=limits,
-                flags=flags if photo else None,
+                flags=flags,
+                photo_studio=photo is not None,
+                high_quality=bool(settings.models.defaults.high_quality_model),
                 loc=loc,
                 session=session,
                 api_visibility=api_visibility,

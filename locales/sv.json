@@ -101,6 +101,7 @@
   "error.too_long": "Beskrivningen är för lång. Gör den lite kortare.",
   "admin.pause": "Pausa bildskapandet",
   "admin.photo": "Fotostudion är öppen för besökare",
+  "admin.quality": "Högkvalitetsmodellen för nya bilder (långsammare, dyrare)",
   "admin.paused": "Bildskapandet är **pausat**.",
   "admin.running": "Bildskapandet är igång.",
   "admin.usage": "Bilder: {used} av {max_images}. Beräknad kostnad: {spend} av {max_cost} USD.",
