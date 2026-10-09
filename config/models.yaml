@@ -42,7 +42,7 @@ edit_models:
     api_model: "fal-ai/flux-2/klein/4b/distilled/edit"
     hf_model: "black-forest-labs/FLUX.2-klein-4B"
     hf_provider: fal-ai
-    est_cost_usd: 0.01 # estimate; check the HF billing page after the first edits
+    est_cost_usd: 0.015 # measured 2026-10-09: $2.92 for 210 requests on the HF billing page (about $0.014)
     enabled: true
 
 text_models:
