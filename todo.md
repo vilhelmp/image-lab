@@ -50,7 +50,7 @@ Deploy the fake-provider skeleton early, on the free account, before building fu
 
 ## Phase 2: Access and limits
 
-- [x] Auth for `workshop` and `admin` users from env vars; fail startup if missing (spec §11). Passwords must be 20+ characters and differ; in development mode, login turns on only when both are set
+- [x] Auth for `workshop` and `admin` users from env vars; fail startup if missing (spec §11). Passwords must be 10+ characters (lowered from 20 on 2026-10-09 for a 2-hour event) and differ; in development mode, login turns on only when both are set
 - [x] Hide API docs link (`footer_links=[]`); `ssr_mode=False`; every event uses `api_visibility="private"` so the Gradio client cannot call it (`access.expose_api` or env `EXPOSE_API` lifts this for load tests, development mode only)
 - [x] `src/services/limits.py`: reservation (reserve, call, reconcile or release) under one lock type
 - [x] Compare reserves 2 images atomically (`reserve(count=2)` tested; the Compare tab itself is Phase 5)

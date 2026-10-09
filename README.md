@@ -27,7 +27,7 @@ DEVELOPMENT_MODE=true uv run python app.py   # fakes, no API keys needed
 
 On Windows PowerShell, set `$env:DEVELOPMENT_MODE = "true"` before `uv run python app.py`.
 
-To try the login and the admin tab with fakes, also set `WORKSHOP_PASSWORD` and `ADMIN_PASSWORD` (20 or more characters, different from each other). Log in as `workshop` or `admin`; only `admin` sees the Status tab.
+To try the login and the admin tab with fakes, also set `WORKSHOP_PASSWORD` and `ADMIN_PASSWORD` (10 or more characters, different from each other). Log in as `workshop` or `admin`; only `admin` sees the Status tab.
 
 Everything workshop-specific is in `config/*.yaml` (models, limits, styles, edit chips, challenge text) and `locales/*.json` (all visible text, Swedish and English). Adding a model from an existing provider is a config change only; see [DEVELOPMENT.md](DEVELOPMENT.md).
 

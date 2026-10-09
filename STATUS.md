@@ -14,7 +14,7 @@ uv run python app.py
 uv run pytest
 ```
 
-To try login and the admin tab with fakes, also set `WORKSHOP_PASSWORD` and `ADMIN_PASSWORD` (20+ characters, different). Log in as `workshop` or `admin`; only `admin` sees the Status tab.
+To try login and the admin tab with fakes, also set `WORKSHOP_PASSWORD` and `ADMIN_PASSWORD` (10+ characters, different). Log in as `workshop` or `admin`; only `admin` sees the Status tab.
 
 ## What works
 

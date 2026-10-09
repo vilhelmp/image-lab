@@ -487,7 +487,7 @@ demo.launch(
 ```
 
 - The **admin** user sees an extra "Status" tab (§12), detected via `gr.Request.username`.
-- Passwords: long and random (≥ 20 characters). Gradio auth has no brute-force protection.
+- Passwords: long and random (≥ 20 characters for a long-lived Space; the app enforces ≥ 10, enough for a short supervised event). Gradio auth has no brute-force protection.
 - Hide the "Use via API" link and API docs (option name depends on the pinned Gradio version).
 - Space stays **public**; the URL is treated as non-secret. A private Space would require every visitor to have a Hugging Face login.
 

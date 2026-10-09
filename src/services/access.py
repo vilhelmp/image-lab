@@ -8,7 +8,7 @@ WORKSHOP_USER = "workshop"
 ADMIN_USER = "admin"
 WORKSHOP_ENV = "WORKSHOP_PASSWORD"
 ADMIN_ENV = "ADMIN_PASSWORD"
-MIN_PASSWORD_CHARS = 20
+MIN_PASSWORD_CHARS = 10  # for a short supervised event; raise it for anything longer-lived
 
 _USERS = ((WORKSHOP_USER, WORKSHOP_ENV), (ADMIN_USER, ADMIN_ENV))
 

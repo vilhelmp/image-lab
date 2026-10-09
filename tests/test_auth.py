@@ -48,7 +48,7 @@ def test_startup_stops_on_weak_or_missing_passwords(make_settings):
     settings = make_settings()
     env = dict.fromkeys(settings.required_secrets(), "x")
     problems = settings.startup_problems(env)
-    assert any("at least 20" in p for p in problems)
+    assert any("at least 10" in p for p in problems)
     assert not any("Missing secret: WORKSHOP_PASSWORD" in p for p in problems)
     assert any("Missing secret: ADMIN_PASSWORD" in p for p in settings.startup_problems({"X": "y"}))
 
